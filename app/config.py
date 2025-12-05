@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # OPTIONAL settings with defaults
     ENVIRONMENT: str = "production"
     ALLOWED_ORIGINS: str = "*"
+    DEBUG: bool = False
     
     # OPTIONAL - Pinecone (for knowledge base)
     PINECONE_API_KEY: Optional[str] = None
@@ -59,9 +60,36 @@ try:
     settings = Settings()
     print("✅ Settings loaded successfully!")
     print(f"📊 Environment: {settings.ENVIRONMENT}")
+    print(f"🔧 Debug mode: {settings.DEBUG}")
+    print(f"🔌 Redis enabled: {settings.REDIS_URL is not None}")
     print(f"🔌 Pinecone enabled: {settings.PINECONE_API_KEY is not None}")
     print(f"🔌 OpenAI enabled: {settings.OPENAI_API_KEY is not None}")
 except Exception as e:
     print(f"❌ Settings failed to load: {e}")
     print(f"Available env vars: {list(os.environ.keys())}")
     raise
+```
+
+---
+
+### **Commit:**
+```
+Fix: Add DEBUG setting to config
+
+Added missing DEBUG attribute that main.py expects.
+```
+
+---
+
+## **RENDER WILL AUTO-REDEPLOY**
+
+Once you commit, Render will automatically detect the change and redeploy!
+
+**Watch the logs** - you should see:
+```
+🔍 Checking environment variables...
+DATABASE_URL present: True ✅
+ANTHROPIC_API_KEY present: True ✅
+SECRET_KEY present: True ✅
+✅ Settings loaded successfully!
+🚀 Starting Tree of Life AI...
