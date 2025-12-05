@@ -1,0 +1,45 @@
+"""
+Conversation Model
+"""
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from datetime import datetime
+import uuid
+
+from app.database import Base
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+    
+    # Primary key
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    # Conversation details
+    title = Column(String(255))
+    status = Column(String(20), default="active")  # active, archived, deleted
+    emergency_detected = Column(Boolean, default=False)
+    
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_message_at = Column(DateTime)
+    
+    # Relationships
+    user = relationship("User", back_populates="conversations")
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
+    
+    def to_dict(self):
+        """Convert to dictionary"""
+        return {
+            "id": str(self.id),
+            "user_id": str(self.user_id),
+            "title": self.title,
+            "status": self.status,
+            "emergency_detected": self.emergency_detected,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "last_message_at": self.last_message_at.isoformat() if self.last_message_at else None
+        }
