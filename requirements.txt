@@ -1,0 +1,21 @@
+# Core FastAPI
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Auth & Security
+# Pin bcrypt to 4.1.3 (last version compatible with passlib)
+bcrypt==4.1.3
+passlib[bcrypt]==1.7.4
+PyJWT==2.8.0
+python-jose[cryptography]==3.3.0
+
+# AI - Latest version that fixes Docker proxy bug
+anthropic==0.47.0
+
+# Data Validation
+pydantic[email]==2.5.3
+email-validator==2.1.0
+
+# Utilities
+python-dotenv==1.0.1
