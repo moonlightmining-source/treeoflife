@@ -74,6 +74,7 @@ class UserLogin(BaseModel):
 # Chat Models
 class ConversationCreate(BaseModel):
     initial_message: str
+    user_name: Optional[str] = None  # ADD THIS LINE
 
 class MessageCreate(BaseModel):
     content: str
