@@ -862,8 +862,8 @@ async def create_checkout_session(request: SubscriptionRequest, http_request: Re
                     'quantity': 1,
                 }],
                 mode='subscription',
-                success_url=os.getenv('FRONTEND_URL', 'http://localhost:3000') + '/subscriptions?success=true',
-                cancel_url=os.getenv('FRONTEND_URL', 'http://localhost:3000') + '/subscriptions?cancelled=true',
+                success_url=os.getenv('FRONTEND_URL', 'http://localhost:3000') + '/subscriptions.html?success=true',
+                cancel_url=os.getenv('FRONTEND_URL', 'http://localhost:3000') + '/subscriptions.html?cancelled=true',
                 metadata={
                     'user_id': str(user.id),
                     'tier': request.tier
