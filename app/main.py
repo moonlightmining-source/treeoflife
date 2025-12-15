@@ -968,7 +968,7 @@ async def create_portal_session(request: Request):
         try:
             portal_session = stripe.billing_portal.Session.create(
                 customer=user.stripe_customer_id,
-                return_url=os.getenv('FRONTEND_URL', 'http://localhost:3000') + '/subscriptions',
+                return_url=os.getenv('FRONTEND_URL', 'http://localhost:3000') + '/settings.html',
             )
             
             return {"portal_url": portal_session.url}
