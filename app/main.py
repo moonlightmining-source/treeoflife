@@ -753,7 +753,8 @@ async def get_single_conversation(conversation_id: str, request: Request):
                 {
                     "role": msg.role,
                     "content": msg.content,
-                    "created_at": msg.created_at.isoformat()
+                    "timestamp": msg.timestamp.isoformat() if msg.timestamp else None,                    
+                    "created_at": msg.timestamp.isoformat() if msg.timestamp else None
                 }
                 for msg in conversation.messages
             ]
