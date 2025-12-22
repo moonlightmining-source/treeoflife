@@ -730,7 +730,30 @@ async def stripe_webhook(request: Request):
                     db.commit()
     
     return {"status": "success"}
-
+@app.post("/api/subscription/portal")
+async def create_portal_session(request: Request):
+    """Create Stripe customer portal session"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if not user.stripe_customer_id:
+            raise HTTPException(status_code=400, detail="No Stripe customer found")
+        
+        try:
+            portal_session = stripe.billing_portal.Session.create(
+                customer=user.stripe_customer_id,
+                return_url='https://treeoflifeai.com/settings'
+            )
+            
+            return {"portal_url": portal_session.url}
+        
+        except Exception as e:
+            print(f"❌ Stripe portal error: {e}")
+            raise HTTPException(status_code=500, detail=f"Stripe error: {str(e)}")
 # ==================== HEALTH PROFILE ENDPOINTS ====================
 
 @app.get("/api/health/profile")
