@@ -311,6 +311,34 @@ async def get_current_user(request: Request):
             "subscription_tier": user.subscription_tier,
             "family_member_limit": user.family_member_limit
         }
+# ==================== SUBSCRIPTION ENDPOINTS ====================
+
+@app.get("/api/subscription/status")
+async def get_subscription_status(request: Request):
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "tier": user.subscription_tier,
+            "family_member_limit": user.family_member_limit,
+            "messages_this_month": 0  # Add message tracking later
+        }
+
+@app.post("/api/subscription/create-checkout")
+async def create_checkout_session(request: Request):
+    user_id = get_current_user_id(request)
+    data = await request.json()
+    tier = data.get('tier')
+    
+    # For now, just return a placeholder
+    # You'll need to add Stripe integration here
+    return {
+        "checkout_url": f"https://buy.stripe.com/test_{tier}?client_reference_id={user_id}"
+    }
 
 # ==================== FAMILY MEMBER ENDPOINTS ====================
 
