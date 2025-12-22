@@ -252,7 +252,7 @@ async def startup_event():
         print("✅ Conversations table recreated")
     except Exception as e:
         print(f"⚠️ Conversations fix: {e}")    
-        print("🚀 Tree of Life AI is ready!")
+    print("🚀 Tree of Life AI is ready!")
 
 # ==================== HELPER FUNCTIONS ====================
 
