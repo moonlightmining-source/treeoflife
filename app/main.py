@@ -347,7 +347,7 @@ class FamilyMemberCreate(BaseModel):
     relationship: Optional[str] = None
     date_of_birth: Optional[str] = None
 
-@app.get("/api/family-members")
+@app.get("/api/family/members")
 async def get_family_members(request: Request):
     user_id = get_current_user_id(request)
     
@@ -360,7 +360,7 @@ async def get_family_members(request: Request):
             "date_of_birth": m.date_of_birth.isoformat() if m.date_of_birth else None
         } for m in members]
 
-@app.post("/api/family-members")
+@app.post("/api/family/members")
 async def create_family_member(request: Request, member: FamilyMemberCreate):
     user_id = get_current_user_id(request)
     
@@ -384,7 +384,7 @@ async def create_family_member(request: Request, member: FamilyMemberCreate):
         
         return {"id": new_member.id, "name": new_member.name}
 
-@app.delete("/api/family-members/{member_id}")
+@app.delete("/api/family/members/{member_id}")
 async def delete_family_member(request: Request, member_id: int):
     user_id = get_current_user_id(request)
     
