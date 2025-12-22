@@ -239,6 +239,25 @@ async def startup_event():
     Base.metadata.create_all(bind=engine)
     print("✅ Database tables created/verified")
     run_migration()
+    @app.on_event("startup")
+async def startup_event():
+    print("🌳 Starting Tree of Life AI...")
+    Base.metadata.create_all(bind=engine)
+    print("✅ Database tables created/verified")
+    run_migration()
+    
+    # FIX conversations table
+    print("🔧 Fixing conversations table...")
+    try:
+        with engine.connect() as conn:
+            # Drop and recreate conversations table
+            conn.execute(text("DROP TABLE IF EXISTS messages CASCADE"))
+            conn.execute(text("DROP TABLE IF EXISTS conversations CASCADE"))
+            conn.commit()
+        Base.metadata.create_all(bind=engine)
+        print("✅ Conversations table recreated")
+    except Exception as e:
+        print(f"⚠️ Conversations fix: {e}")
     print("🚀 Tree of Life AI is ready!")
 
 # ==================== HELPER FUNCTIONS ====================
