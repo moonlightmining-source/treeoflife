@@ -31,9 +31,9 @@ stripe.api_key = STRIPE_SECRET_KEY
 
 # ==================== STRIPE PRICE IDS ====================
 STRIPE_PRICES = {
-    'basic': os.getenv('STRIPE_PRICE_BASIC'),
-    'premium': os.getenv('STRIPE_PRICE_PREMIUM'),
-    'pro': os.getenv('STRIPE_PRICE_PRO')
+    'basic': os.getenv('STRIPE_BASIC_PRICE_ID'),
+    'premium': os.getenv('STRIPE_PREMIUM_PRICE_ID'),
+    'pro': os.getenv('STRIPE_PRO_PRICE_ID')
 }
 
 # ==================== DATABASE SETUP ====================
