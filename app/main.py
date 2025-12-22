@@ -328,7 +328,23 @@ async def login(request: LoginRequest):
         
         token = create_token(user.id)
         return {"token": token, "user": {"email": user.email, "name": user.full_name}}
-
+@app.get("/api/auth/me")
+async def get_current_user(request: Request):
+    """Get current user info"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "id": str(user.id),
+            "email": user.email,
+            "name": user.full_name,
+            "subscription_tier": user.subscription_tier or 'free',
+            "family_member_limit": user.family_member_limit or 0
+        }
 # ==================== CHAT ENDPOINTS ====================
 
 class ConversationCreate(BaseModel):
@@ -683,8 +699,8 @@ async def create_checkout_session(request: Request):
                 payment_method_types=['card'],
                 line_items=[{'price': price_id, 'quantity': 1}],
                 mode='subscription',
-                success_url='https://treeoflifeai.com/subscriptions?success=true',
-                cancel_url='https://treeoflifeai.com/subscriptions',
+                success_url='https://treeoflifeai.com/subscriptions.html?success=true',
+                cancel_url='https://treeoflifeai.com/index.html',
                 client_reference_id=str(user.id),
                 metadata={'user_id': str(user.id), 'tier': tier}
             )
@@ -746,7 +762,7 @@ async def create_portal_session(request: Request):
         try:
             portal_session = stripe.billing_portal.Session.create(
                 customer=user.stripe_customer_id,
-                return_url='https://treeoflifeai.com/settings'
+                return_url='https://treeoflifeai.com/index.html'
             )
             
             return {"portal_url": portal_session.url}
