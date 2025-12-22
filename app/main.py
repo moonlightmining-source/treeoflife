@@ -345,6 +345,36 @@ async def get_current_user(request: Request):
             "subscription_tier": user.subscription_tier or 'free',
             "family_member_limit": user.family_member_limit or 0
         }
+  @app.delete("/api/auth/account")
+  async def delete_account(request: Request):
+    """Delete user account and all associated data"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Delete all user data
+        db.query(Message).filter(Message.conversation_id.in_(
+            db.query(Conversation.id).filter(Conversation.user_id == user_id)
+        )).delete(synchronize_session=False)
+        
+        db.query(Conversation).filter(Conversation.user_id == user_id).delete()
+        db.query(FamilyMember).filter(FamilyMember.user_id == user_id).delete()
+        db.query(HealthProfile).filter(HealthProfile.user_id == user_id).delete()
+        
+        # Delete lab results if table exists
+        try:
+            db.execute(text("DELETE FROM lab_results WHERE user_id = :user_id"), {'user_id': str(user_id)})
+        except:
+            pass
+        
+        # Delete user
+        db.delete(user)
+        db.commit()
+        
+        return {"success": True, "message": "Account deleted"}      
 # ==================== CHAT ENDPOINTS ====================
 
 class ConversationCreate(BaseModel):
