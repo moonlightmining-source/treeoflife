@@ -146,8 +146,28 @@ def run_migration():
     
     try:
         with engine.connect() as conn:
+            # FIX: Ensure UUID generation is enabled
+            print("🔑 Ensuring UUID extension...")
+            try:
+                conn.execute(text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"'))
+                conn.commit()
+            except Exception as e:
+                print(f"  ⚠️ UUID extension: {e}")
+            
             # Users table
             print("👤 Checking users table columns...")
+            
+            # FIX: Ensure id column has UUID generation
+            try:
+                conn.execute(text("""
+                    ALTER TABLE users 
+                    ALTER COLUMN id SET DEFAULT gen_random_uuid()
+                """))
+                conn.commit()
+                print("  ✅ Fixed users.id UUID generation")
+            except Exception as e:
+                print(f"  ⚠️ users.id fix: {e}")
+            
             user_migrations = [
                 ("hashed_password", "ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255)"),
                 ("full_name", "ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)"),
