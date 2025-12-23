@@ -345,8 +345,8 @@ async def get_current_user(request: Request):
             "subscription_tier": user.subscription_tier or 'free',
             "family_member_limit": user.family_member_limit or 0
         }
-  @app.delete("/api/auth/account")
-  async def delete_account(request: Request):
+@app.delete("/api/auth/account")
+async def delete_account(request: Request):
     """Delete user account and all associated data"""
     user_id = get_current_user_id(request)
     
