@@ -29,6 +29,10 @@ ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
 stripe.api_key = STRIPE_SECRET_KEY
 
+# ==================== ANTHROPIC SETUP ====================
+anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+
 # ==================== STRIPE PRICE IDS ====================
 STRIPE_PRICES = {
     'basic': os.getenv('STRIPE_BASIC_PRICE_ID'),
@@ -990,6 +994,244 @@ async def delete_health_metric(request: Request, metric_id: int):
         db.commit()
         
         return {"success": True}
+# ==================== AI HEALTH ANALYSIS HELPERS ====================
+
+def _format_metric_trend(metrics):
+    """Format metrics for prompt"""
+    if not metrics or len(metrics) == 0:
+        return "No data available"
+    
+    recent = metrics[-5:]  # Last 5 entries
+    values = [f"{m.get('value')} {m.get('unit')} on {m.get('recorded_at')[:10]}" for m in recent]
+    return ", ".join(values)
+
+
+def _format_lab_results(lab_results):
+    """Format lab results for prompt"""
+    if not lab_results:
+        return "No recent lab results"
+    
+    formatted = []
+    for result in lab_results:
+        formatted.append(f"\n{result.get('test_type')} - {result.get('test_date')[:10]} ({result.get('provider')})")
+        for val in result.get('results', []):
+            formatted.append(f"  - {val.get('name')}: {val.get('value')} {val.get('unit')} (Range: {val.get('reference_range')})")
+    
+    return "\n".join(formatted)
+
+
+def _parse_analysis_sections(analysis_text):
+    """Parse Claude's response into structured sections"""
+    sections = {
+        "overall_assessment": "",
+        "lab_results_analysis": "",
+        "metrics_trends": "",
+        "medication_review": "",
+        "integrative_recommendations": "",
+        "lifestyle_suggestions": "",
+        "western_medicine": "",
+        "clinical_nutrition": "",
+        "herbal_medicine": "",
+        "supplement_recommendations": "",
+        "ayurvedic_perspective": "",
+        "tcm_perspective": "",
+        "action_items": ""
+    }
+    
+    current_section = "overall_assessment"
+    lines = analysis_text.split('\n')
+    
+    for line in lines:
+        line_lower = line.lower()
+        
+        if 'overall health' in line_lower or 'health assessment' in line_lower:
+            current_section = "overall_assessment"
+        elif 'lab result' in line_lower:
+            current_section = "lab_results_analysis"
+        elif 'metric' in line_lower and 'trend' in line_lower:
+            current_section = "metrics_trends"
+        elif 'medication' in line_lower:
+            current_section = "medication_review"
+        elif 'integrative' in line_lower:
+            current_section = "integrative_recommendations"
+        elif 'lifestyle' in line_lower:
+            current_section = "lifestyle_suggestions"
+        elif 'western medicine' in line_lower:
+            current_section = "western_medicine"
+        elif 'clinical nutrition' in line_lower or 'nutrition' in line_lower:
+            current_section = "clinical_nutrition"
+        elif 'herbal medicine' in line_lower or 'herbal' in line_lower:
+            current_section = "herbal_medicine"
+        elif 'supplement' in line_lower:
+            current_section = "supplement_recommendations"
+        elif 'ayurvedic' in line_lower:
+            current_section = "ayurvedic_perspective"
+        elif 'tcm' in line_lower or 'chinese medicine' in line_lower:
+            current_section = "tcm_perspective"
+        elif 'action item' in line_lower:
+            current_section = "action_items"
+        else:
+            sections[current_section] += line + "\n"
+    
+    return sections
+
+
+# ==================== AI HEALTH ANALYSIS ENDPOINTS ====================
+
+@app.post("/api/health/ai-analysis")
+async def ai_health_analysis(
+    health_data: dict,
+    request: Request
+):
+    """Generate comprehensive AI health analysis with clinical nutrition and supplement recommendations"""
+    user_id = get_current_user_id(request)
+    
+    try:
+        prompt = f"""You are an expert integrative health advisor with deep knowledge of Western medicine, Ayurveda, 
+Traditional Chinese Medicine, Clinical Nutrition, Herbal Medicine, and evidence-based supplement therapy. 
+Analyze the following health data and provide a comprehensive, personalized health assessment.
+
+PATIENT PROFILE:
+- Name: {health_data.get('personal', {}).get('name', 'User')}
+- Age: {health_data.get('personal', {}).get('age', 'Not provided')}
+- Sex: {health_data.get('personal', {}).get('sex', 'Not provided')}
+- Blood Type: {health_data.get('personal', {}).get('blood_type', 'Not provided')}
+- Height: {health_data.get('personal', {}).get('height', 'Not provided')}
+- Weight: {health_data.get('personal', {}).get('weight', 'Not provided')} lbs
+- Ethnicity: {health_data.get('personal', {}).get('ethnicity', 'Not provided')}
+
+ALTERNATIVE MEDICINE PROFILE:
+- Ayurvedic Dosha: {health_data.get('personal', {}).get('ayurvedic_dosha', 'Not provided')}
+- TCM Pattern: {health_data.get('personal', {}).get('tcm_pattern', 'Not provided')}
+- Preferred Healing Traditions: {', '.join(health_data.get('personal', {}).get('preferred_traditions', [])) or 'Not provided'}
+
+LIFESTYLE:
+- Diet Type: {health_data.get('personal', {}).get('diet_type', 'Not provided')}
+- Sleep Hours: {health_data.get('personal', {}).get('sleep_hours', 'Not provided')} hours/night
+- Stress Level: {health_data.get('personal', {}).get('stress_level', 'Not provided')}/10
+
+MEDICAL HISTORY:
+- Current Conditions: {', '.join(health_data.get('medical', {}).get('current_conditions', [])) or 'None reported'}
+- Allergies: {', '.join(health_data.get('medical', {}).get('allergies', [])) or 'None reported'}
+- Past Diagnoses: {len(health_data.get('medical', {}).get('past_diagnoses', []))} conditions
+- Current Medications: {len(health_data.get('medical', {}).get('medications', []))} medications
+
+MEDICATIONS:
+{chr(10).join([f"- {med.get('name')}: {med.get('dosage')} {med.get('frequency')} ({med.get('type')})" 
+               for med in health_data.get('medical', {}).get('medications', [])]) or 'None'}
+
+RECENT HEALTH METRICS:
+Weight Trend: {_format_metric_trend(health_data.get('metrics', {}).get('weight', []))}
+Blood Pressure Trend: {_format_metric_trend(health_data.get('metrics', {}).get('blood_pressure', []))}
+Blood Sugar Trend: {_format_metric_trend(health_data.get('metrics', {}).get('blood_sugar', []))}
+
+RECENT LAB RESULTS:
+{_format_lab_results(health_data.get('lab_results', []))}
+
+Please provide a comprehensive health analysis with the following sections:
+
+1. **Overall Health Assessment**: General health status and key observations
+2. **Lab Results Analysis**: Interpretation of recent lab values, highlighting abnormalities
+3. **Metrics Trends**: Analysis of weight, blood pressure, blood sugar trends
+4. **Medication Review**: Assessment of current medications and potential interactions
+5. **Integrative Recommendations**: Combine insights from multiple healing traditions
+6. **Lifestyle Suggestions**: Diet, exercise, sleep, stress management recommendations
+7. **Western Medicine Perspective**: Evidence-based medical insights
+8. **Clinical Nutrition**: Specific nutritional therapy recommendations based on deficiencies, conditions, and goals
+9. **Herbal Medicine**: Evidence-based herbal remedies appropriate for their conditions (with safety considerations)
+10. **Supplement Recommendations**: Specific supplements with dosages, timing, and rationale (considering interactions with medications)
+11. **Ayurvedic Perspective**: Recommendations based on dosha (if applicable)
+12. **TCM Perspective**: Recommendations based on pattern (if applicable)
+13. **Action Items**: Specific, actionable steps to improve health
+
+IMPORTANT for Clinical Nutrition & Supplements:
+- Consider nutrient deficiencies based on lab results
+- Account for medication-nutrient interactions
+- Recommend specific dosages and optimal timing
+- Prioritize food sources over supplements when possible
+- Note any contraindications with current medications
+- Include quality/form recommendations (e.g., methylated B vitamins, chelated minerals)
+- Suggest appropriate monitoring (e.g., recheck vitamin D levels in 3 months)
+
+Use markdown formatting. Be compassionate, clear, and actionable. Highlight any concerning findings 
+that warrant medical attention. Emphasize the integrative approach combining ancient wisdom with modern science.
+
+Remember: This is for informational purposes only and does not replace professional medical advice."""
+
+        message = anthropic_client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        analysis_text = message.content[0].text
+        sections = _parse_analysis_sections(analysis_text)
+
+        return JSONResponse(content=sections)
+
+    except Exception as e:
+        print(f"❌ AI analysis error: {str(e)}")
+        raise HTTPException(status_code=500, detail="AI analysis failed")
+
+
+@app.post("/api/health/explain-value")
+async def explain_lab_value(
+    request_data: dict,
+    request: Request
+):
+    """Get AI explanation for a specific lab value"""
+    user_id = get_current_user_id(request)
+    
+    try:
+        value_name = request_data.get('value_name')
+        value = request_data.get('value')
+        unit = request_data.get('unit')
+        reference_range = request_data.get('reference_range')
+        user_data = request_data.get('user_data', {})
+
+        prompt = f"""Explain the following lab value in a clear, compassionate way:
+
+Test: {value_name}
+Patient's Value: {value} {unit}
+Reference Range: {reference_range}
+
+Patient Context:
+- Age: {user_data.get('age', 'Not provided')}
+- Sex: {user_data.get('sex', 'Not provided')}
+- Current Conditions: {', '.join(user_data.get('conditions', [])) or 'None reported'}
+- Current Medications: {len(user_data.get('medications', []))} medications
+
+Please explain:
+1. What this test measures
+2. What the value means (is it normal, high, or low?)
+3. Possible causes if abnormal
+4. Health implications
+5. Lifestyle factors that may affect it
+6. Nutritional/supplement interventions that may help
+7. When to see a doctor
+8. Questions to ask your doctor
+
+Use simple language that a non-medical person can understand. Be reassuring but honest about any concerns."""
+
+        message = anthropic_client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        explanation = message.content[0].text
+
+        return JSONResponse(content={
+            "explanation": explanation,
+            "value_name": value_name,
+            "value": value,
+            "unit": unit,
+            "reference_range": reference_range
+        })
+
+    except Exception as e:
+        print(f"❌ Value explanation error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Explanation failed")
 
 # ==================== LAB RESULTS ENDPOINTS ====================
 
