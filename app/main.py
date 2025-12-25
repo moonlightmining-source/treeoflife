@@ -1441,8 +1441,7 @@ Now extract all lab values from this document:"""
             status_code=500,
             detail=f"Failed to process lab results: {str(e)}"
         )
-    return extracted_data
-
+    
 @app.post("/api/lab-results/save")
 async def save_lab_results(request: Request):
     user_id = get_current_user_id(request)
