@@ -1461,7 +1461,17 @@ async def save_lab_results(request: Request):
             )
         """))
         conn.commit()
-        
+        # Ensure file_url column exists (for existing tables)
+        try:
+            conn.execute(text("""
+                ALTER TABLE lab_results 
+                ADD COLUMN IF NOT EXISTS file_url TEXT
+            """))
+            conn.commit()
+            print("✅ Ensured file_url column exists")
+        except Exception as e:
+            print(f"⚠️ Column add note: {e}")
+            
         conn.execute(text("""
             INSERT INTO lab_results (user_id, test_type, test_date, provider, file_url, results)
             VALUES (:user_id, :test_type, :test_date, :provider, :file_url, :results)
