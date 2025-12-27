@@ -273,7 +273,7 @@ def run_migration():
             except Exception as e:
                 print(f"  ⚠️ family_members.id fix: {e}")
             
-           print("✅ Database migration completed!")
+            print("✅ Database migration completed!")
             
     except Exception as e:
         print(f"❌ Migration error: {e}")
