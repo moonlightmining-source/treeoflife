@@ -76,7 +76,7 @@ class User(Base):
 class FamilyMember(Base):
     __tablename__ = "family_members"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     user_id = Column(UUID(as_uuid=True), nullable=False)
     name = Column(String, nullable=False)
     relationship = Column(String)
