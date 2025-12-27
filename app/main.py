@@ -275,36 +275,7 @@ def run_migration():
             
             print("✅ Database migration completed!")
             
-    except Exception as e:
-        print(f"❌ Migration error: {e}")
-        raise
-            try:
-                # Drop the old id column and recreate with auto-increment
-                conn.execute(text("""
-                    DO $$ 
-                    BEGIN
-                        -- Create a sequence if it doesn't exist
-                        IF NOT EXISTS (SELECT 1 FROM pg_sequences WHERE sequencename = 'family_members_id_seq') THEN
-                            CREATE SEQUENCE family_members_id_seq;
-                        END IF;
-                        
-                        -- Set the id column to use the sequence
-                        ALTER TABLE family_members 
-                        ALTER COLUMN id SET DEFAULT nextval('family_members_id_seq');
-                        
-                        -- Set the sequence ownership
-                        ALTER SEQUENCE family_members_id_seq OWNED BY family_members.id;
-                        
-                        -- Set the sequence to start from the max existing id + 1
-                        PERFORM setval('family_members_id_seq', COALESCE((SELECT MAX(id) FROM family_members), 0) + 1, false);
-                    END $$;
-                """))
-                conn.commit()
-                print("  ✅ Fixed family_members.id auto-increment")
-            except Exception as e:
-                print(f"  ⚠️ family_members.id fix: {e}")
-            
-            print("✅ Database migration completed!")
+   
 # ==================== FASTAPI APP ====================
 
 app = FastAPI(title="Tree of Life AI API")
