@@ -273,11 +273,13 @@ def run_migration():
             except Exception as e:
                 print(f"  ⚠️ family_members.id fix: {e}")
             
-            print("✅ Database migration completed!")
+           print("✅ Database migration completed!")
             
-   
-# ==================== FASTAPI APP ====================
+    except Exception as e:
+        print(f"❌ Migration error: {e}")
+        raise
 
+# ==================== FASTAPI APP ====================
 app = FastAPI(title="Tree of Life AI API")
 
 app.add_middleware(
