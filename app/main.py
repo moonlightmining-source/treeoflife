@@ -1547,7 +1547,417 @@ async def delete_lab_result(request: Request, result_id: int):
         conn.commit()
     
     return {"success": True}
+# ==================== PRO PROTOCOL MODELS ====================
 
+class Protocol(Base):
+    __tablename__ = "protocols"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), nullable=False)
+    name = Column(String, nullable=False)
+    traditions = Column(String)  # "Ayurveda + TCM"
+    description = Column(Text)
+    duration_weeks = Column(Integer, default=4)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class ProtocolPhase(Base):
+    __tablename__ = "protocol_phases"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    protocol_id = Column(Integer, ForeignKey('protocols.id'), nullable=False)
+    week_number = Column(Integer, nullable=False)
+    title = Column(String, nullable=False)
+    instructions = Column(Text)
+    herbs_supplements = Column(JSON)  # [{"name": "Ashwagandha", "dosage": "500mg 2x daily"}]
+    lifestyle_changes = Column(JSON)  # ["Meditation 10min daily", "Sleep by 10pm"]
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class ClientProtocol(Base):
+    __tablename__ = "client_protocols"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), nullable=False)  # practitioner
+    client_id = Column(Integer, ForeignKey('family_members.id'), nullable=False)
+    protocol_id = Column(Integer, ForeignKey('protocols.id'), nullable=False)
+    start_date = Column(Date, nullable=False)
+    current_week = Column(Integer, default=1)
+    status = Column(String, default='active')  # active, paused, completed
+    completion_percentage = Column(Integer, default=0)
+    assigned_at = Column(DateTime, default=datetime.utcnow)
+
+class ComplianceLog(Base):
+    __tablename__ = "compliance_logs"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    client_protocol_id = Column(Integer, ForeignKey('client_protocols.id'), nullable=False)
+    week_number = Column(Integer, nullable=False)
+    compliance_score = Column(Integer)  # 0-100
+    notes = Column(Text)
+    logged_at = Column(DateTime, default=datetime.utcnow)
+
+# ==================== PRO PROTOCOL ENDPOINTS ====================
+
+class ProtocolCreate(BaseModel):
+    name: str
+    traditions: Optional[str] = None
+    description: Optional[str] = None
+    duration_weeks: int = 4
+
+class PhaseCreate(BaseModel):
+    week_number: int
+    title: str
+    instructions: Optional[str] = None
+    herbs_supplements: Optional[List[Dict]] = []
+    lifestyle_changes: Optional[List[str]] = []
+
+class ProtocolAssign(BaseModel):
+    client_id: int
+    start_date: str
+
+class ComplianceCreate(BaseModel):
+    client_protocol_id: int
+    week_number: int
+    compliance_score: int
+    notes: Optional[str] = None
+
+# Protocols CRUD
+@app.get("/api/protocols")
+async def get_protocols(request: Request):
+    """Get all protocols for current user"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        protocols = db.query(Protocol).filter(
+            Protocol.user_id == user_id,
+            Protocol.is_active == True
+        ).all()
+        
+        return {"protocols": [{
+            "id": p.id,
+            "name": p.name,
+            "traditions": p.traditions,
+            "description": p.description,
+            "duration_weeks": p.duration_weeks,
+            "created_at": p.created_at.isoformat()
+        } for p in protocols]}
+
+@app.post("/api/protocols")
+async def create_protocol(request: Request, protocol: ProtocolCreate):
+    """Create a new protocol"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        new_protocol = Protocol(
+            user_id=user_id,
+            name=protocol.name,
+            traditions=protocol.traditions,
+            description=protocol.description,
+            duration_weeks=protocol.duration_weeks
+        )
+        db.add(new_protocol)
+        db.commit()
+        db.refresh(new_protocol)
+        
+        return {"id": new_protocol.id, "name": new_protocol.name}
+
+@app.put("/api/protocols/{protocol_id}")
+async def update_protocol(request: Request, protocol_id: int, protocol: ProtocolCreate):
+    """Update a protocol"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        existing = db.query(Protocol).filter(
+            Protocol.id == protocol_id,
+            Protocol.user_id == user_id
+        ).first()
+        
+        if not existing:
+            raise HTTPException(status_code=404, detail="Protocol not found")
+        
+        existing.name = protocol.name
+        existing.traditions = protocol.traditions
+        existing.description = protocol.description
+        existing.duration_weeks = protocol.duration_weeks
+        existing.updated_at = datetime.utcnow()
+        
+        db.commit()
+        return {"success": True}
+
+@app.delete("/api/protocols/{protocol_id}")
+async def delete_protocol(request: Request, protocol_id: int):
+    """Soft delete a protocol"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        protocol = db.query(Protocol).filter(
+            Protocol.id == protocol_id,
+            Protocol.user_id == user_id
+        ).first()
+        
+        if not protocol:
+            raise HTTPException(status_code=404, detail="Protocol not found")
+        
+        protocol.is_active = False
+        db.commit()
+        
+        return {"success": True}
+
+# Protocol Phases
+@app.get("/api/protocols/{protocol_id}/phases")
+async def get_protocol_phases(request: Request, protocol_id: int):
+    """Get all phases for a protocol"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Verify ownership
+        protocol = db.query(Protocol).filter(
+            Protocol.id == protocol_id,
+            Protocol.user_id == user_id
+        ).first()
+        
+        if not protocol:
+            raise HTTPException(status_code=404, detail="Protocol not found")
+        
+        phases = db.query(ProtocolPhase).filter(
+            ProtocolPhase.protocol_id == protocol_id
+        ).order_by(ProtocolPhase.week_number).all()
+        
+        return {"phases": [{
+            "id": p.id,
+            "week_number": p.week_number,
+            "title": p.title,
+            "instructions": p.instructions,
+            "herbs_supplements": p.herbs_supplements or [],
+            "lifestyle_changes": p.lifestyle_changes or []
+        } for p in phases]}
+
+@app.post("/api/protocols/{protocol_id}/phases")
+async def create_phase(request: Request, protocol_id: int, phase: PhaseCreate):
+    """Add a phase to a protocol"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Verify ownership
+        protocol = db.query(Protocol).filter(
+            Protocol.id == protocol_id,
+            Protocol.user_id == user_id
+        ).first()
+        
+        if not protocol:
+            raise HTTPException(status_code=404, detail="Protocol not found")
+        
+        new_phase = ProtocolPhase(
+            protocol_id=protocol_id,
+            week_number=phase.week_number,
+            title=phase.title,
+            instructions=phase.instructions,
+            herbs_supplements=phase.herbs_supplements,
+            lifestyle_changes=phase.lifestyle_changes
+        )
+        db.add(new_phase)
+        db.commit()
+        db.refresh(new_phase)
+        
+        return {"id": new_phase.id}
+
+@app.delete("/api/protocols/{protocol_id}/phases/{phase_id}")
+async def delete_phase(request: Request, protocol_id: int, phase_id: int):
+    """Delete a phase"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Verify ownership
+        protocol = db.query(Protocol).filter(
+            Protocol.id == protocol_id,
+            Protocol.user_id == user_id
+        ).first()
+        
+        if not protocol:
+            raise HTTPException(status_code=404, detail="Protocol not found")
+        
+        phase = db.query(ProtocolPhase).filter(
+            ProtocolPhase.id == phase_id,
+            ProtocolPhase.protocol_id == protocol_id
+        ).first()
+        
+        if not phase:
+            raise HTTPException(status_code=404, detail="Phase not found")
+        
+        db.delete(phase)
+        db.commit()
+        
+        return {"success": True}
+
+# Protocol Assignment
+@app.post("/api/protocols/{protocol_id}/assign")
+async def assign_protocol(request: Request, protocol_id: int, assignment: ProtocolAssign):
+    """Assign a protocol to a client"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Verify protocol ownership
+        protocol = db.query(Protocol).filter(
+            Protocol.id == protocol_id,
+            Protocol.user_id == user_id
+        ).first()
+        
+        if not protocol:
+            raise HTTPException(status_code=404, detail="Protocol not found")
+        
+        # Verify client ownership
+        client = db.query(FamilyMember).filter(
+            FamilyMember.id == assignment.client_id,
+            FamilyMember.user_id == user_id
+        ).first()
+        
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Create assignment
+        new_assignment = ClientProtocol(
+            user_id=user_id,
+            client_id=assignment.client_id,
+            protocol_id=protocol_id,
+            start_date=datetime.fromisoformat(assignment.start_date).date()
+        )
+        db.add(new_assignment)
+        db.commit()
+        db.refresh(new_assignment)
+        
+        return {"id": new_assignment.id}
+
+@app.get("/api/client-protocols")
+async def get_client_protocols(request: Request):
+    """Get all assigned protocols"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        assignments = db.query(ClientProtocol).filter(
+            ClientProtocol.user_id == user_id
+        ).all()
+        
+        result = []
+        for a in assignments:
+            client = db.query(FamilyMember).filter(FamilyMember.id == a.client_id).first()
+            protocol = db.query(Protocol).filter(Protocol.id == a.protocol_id).first()
+            
+            result.append({
+                "id": a.id,
+                "client_name": client.name if client else "Unknown",
+                "client_id": a.client_id,
+                "protocol_name": protocol.name if protocol else "Unknown",
+                "protocol_id": a.protocol_id,
+                "start_date": a.start_date.isoformat(),
+                "current_week": a.current_week,
+                "status": a.status,
+                "completion_percentage": a.completion_percentage
+            })
+        
+        return {"assignments": result}
+
+# Compliance Tracking
+@app.post("/api/compliance")
+async def log_compliance(request: Request, compliance: ComplianceCreate):
+    """Log client compliance"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Verify ownership
+        assignment = db.query(ClientProtocol).filter(
+            ClientProtocol.id == compliance.client_protocol_id,
+            ClientProtocol.user_id == user_id
+        ).first()
+        
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        # Create compliance log
+        log = ComplianceLog(
+            client_protocol_id=compliance.client_protocol_id,
+            week_number=compliance.week_number,
+            compliance_score=compliance.compliance_score,
+            notes=compliance.notes
+        )
+        db.add(log)
+        
+        # Update assignment progress
+        assignment.current_week = compliance.week_number
+        assignment.completion_percentage = min(100, (compliance.week_number / 
+            db.query(Protocol).filter(Protocol.id == assignment.protocol_id).first().duration_weeks) * 100)
+        
+        db.commit()
+        
+        return {"success": True}
+
+@app.get("/api/compliance/{client_protocol_id}")
+async def get_compliance(request: Request, client_protocol_id: int):
+    """Get compliance logs for an assignment"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Verify ownership
+        assignment = db.query(ClientProtocol).filter(
+            ClientProtocol.id == client_protocol_id,
+            ClientProtocol.user_id == user_id
+        ).first()
+        
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        logs = db.query(ComplianceLog).filter(
+            ComplianceLog.client_protocol_id == client_protocol_id
+        ).order_by(ComplianceLog.week_number).all()
+        
+        return {"logs": [{
+            "week_number": log.week_number,
+            "compliance_score": log.compliance_score,
+            "notes": log.notes,
+            "logged_at": log.logged_at.isoformat()
+        } for log in logs]}
+
+# Analytics
+@app.get("/api/analytics/dashboard")
+async def get_analytics(request: Request):
+    """Get analytics data for dashboard"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Total clients
+        total_clients = db.query(FamilyMember).filter(FamilyMember.user_id == user_id).count()
+        
+        # Active protocols
+        active_assignments = db.query(ClientProtocol).filter(
+            ClientProtocol.user_id == user_id,
+            ClientProtocol.status == 'active'
+        ).count()
+        
+        # Average completion rate
+        all_assignments = db.query(ClientProtocol).filter(
+            ClientProtocol.user_id == user_id
+        ).all()
+        
+        avg_completion = sum(a.completion_percentage for a in all_assignments) / len(all_assignments) if all_assignments else 0
+        
+        # Compliance data
+        recent_logs = db.query(ComplianceLog).join(ClientProtocol).filter(
+            ClientProtocol.user_id == user_id
+        ).order_by(ComplianceLog.logged_at.desc()).limit(10).all()
+        
+        avg_compliance = sum(log.compliance_score for log in recent_logs) / len(recent_logs) if recent_logs else 0
+        
+        return {
+            "total_clients": total_clients,
+            "active_protocols": active_assignments,
+            "avg_completion": round(avg_completion, 1),
+            "avg_compliance": round(avg_compliance, 1),
+            "client_retention": 92,  # Placeholder
+            "recent_compliance": [{
+                "week": log.week_number,
+                "score": log.compliance_score
+            } for log in recent_logs]
+        }
 # ==================== HEALTH CHECK ====================
 
 @app.get("/")
