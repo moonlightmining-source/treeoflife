@@ -299,6 +299,40 @@ SYSTEM_PROMPT = """You are Tree of Life AI, an integrative health intelligence a
 @app.on_event("startup")
 async def startup_event():
     print("🌳 Starting Tree of Life AI...")
+    
+    # FIX: Ensure family_members.id is INTEGER before creating new tables
+    print("🔧 Checking family_members.id data type...")
+    try:
+        with engine.connect() as conn:
+            # Check current data type
+            result = conn.execute(text("""
+                SELECT data_type 
+                FROM information_schema.columns 
+                WHERE table_name = 'family_members' 
+                AND column_name = 'id'
+            """))
+            row = result.fetchone()
+            
+            if row and row[0] != 'integer':
+                print(f"  ⚠️ family_members.id is {row[0]}, converting to INTEGER...")
+                
+                # Drop foreign key constraints if any exist
+                conn.execute(text("ALTER TABLE IF EXISTS client_protocols DROP CONSTRAINT IF EXISTS client_protocols_client_id_fkey CASCADE"))
+                conn.commit()
+                
+                # Convert id column to INTEGER
+                conn.execute(text("""
+                    ALTER TABLE family_members 
+                    ALTER COLUMN id TYPE INTEGER USING id::integer
+                """))
+                conn.commit()
+                print("  ✅ Converted family_members.id to INTEGER")
+            else:
+                print("  ✅ family_members.id is already INTEGER")
+                
+    except Exception as e:
+        print(f"  ⚠️ family_members.id check: {e}")
+    
     Base.metadata.create_all(bind=engine)
     print("✅ Database tables created/verified")
     run_migration()
