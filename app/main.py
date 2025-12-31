@@ -611,9 +611,17 @@ async def create_conversation_endpoint(request: Request, data: ConversationCreat
         }
         
         if ANTHROPIC_PROJECT_ID:
-            api_params["project_id"] = ANTHROPIC_PROJECT_ID
-        
-        response = client.messages.create(**api_params)
+            try:
+                api_params["project_id"] = ANTHROPIC_PROJECT_ID
+                response = client.messages.create(**api_params)
+            except TypeError as e:
+                if "project_id" in str(e):
+                    del api_params["project_id"]
+                    response = client.messages.create(**api_params)
+                else:
+                    raise
+        else:
+            response = client.messages.create(**api_params)
         
         ai_content = response.content[0].text
         
@@ -726,9 +734,17 @@ async def send_message(request: Request, conversation_id: str, data: MessageCrea
         }
         
         if ANTHROPIC_PROJECT_ID:
-            api_params["project_id"] = ANTHROPIC_PROJECT_ID
-        
-        response = client.messages.create(**api_params)
+            try:
+                api_params["project_id"] = ANTHROPIC_PROJECT_ID
+                response = client.messages.create(**api_params)
+            except TypeError as e:
+                if "project_id" in str(e):
+                    del api_params["project_id"]
+                    response = client.messages.create(**api_params)
+                else:
+                    raise
+        else:
+            response = client.messages.create(**api_params)
         
         ai_content = response.content[0].text
         
@@ -1288,7 +1304,7 @@ Use markdown formatting. Be compassionate, clear, and actionable."""
 
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         
-        # ✅ ADD PROJECT_ID HERE
+       # ✅ ADD PROJECT_ID HERE
         api_params = {
             "model": "claude-sonnet-4-20250514",
             "max_tokens": 4000,
@@ -1296,9 +1312,17 @@ Use markdown formatting. Be compassionate, clear, and actionable."""
         }
         
         if ANTHROPIC_PROJECT_ID:
-            api_params["project_id"] = ANTHROPIC_PROJECT_ID
-        
-        message = client.messages.create(**api_params)
+            try:
+                api_params["project_id"] = ANTHROPIC_PROJECT_ID
+                message = client.messages.create(**api_params)
+            except TypeError as e:
+                if "project_id" in str(e):
+                    del api_params["project_id"]
+                    message = client.messages.create(**api_params)
+                else:
+                    raise
+        else:
+            message = client.messages.create(**api_params)
         
         analysis_text = message.content[0].text
         sections = _parse_analysis_sections(analysis_text)
@@ -1355,9 +1379,17 @@ Use simple language that a non-medical person can understand."""
         }
         
         if ANTHROPIC_PROJECT_ID:
-            api_params["project_id"] = ANTHROPIC_PROJECT_ID
-        
-        message = client.messages.create(**api_params)
+            try:
+                api_params["project_id"] = ANTHROPIC_PROJECT_ID
+                message = client.messages.create(**api_params)
+            except TypeError as e:
+                if "project_id" in str(e):
+                    del api_params["project_id"]
+                    message = client.messages.create(**api_params)
+                else:
+                    raise
+        else:
+            message = client.messages.create(**api_params)
         
         explanation = message.content[0].text
         
@@ -1472,9 +1504,17 @@ Now extract all lab values from this document:"""
         }
         
         if ANTHROPIC_PROJECT_ID:
-            api_params["project_id"] = ANTHROPIC_PROJECT_ID
-        
-        message = client.messages.create(**api_params)
+            try:
+                api_params["project_id"] = ANTHROPIC_PROJECT_ID
+                message = client.messages.create(**api_params)
+            except TypeError as e:
+                if "project_id" in str(e):
+                    del api_params["project_id"]
+                    message = client.messages.create(**api_params)
+                else:
+                    raise
+        else:
+            message = client.messages.create(**api_params)
         
         response_text = message.content[0].text
         print(f"🤖 Raw AI Response:\n{response_text}\n")
