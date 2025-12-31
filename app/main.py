@@ -20,6 +20,35 @@ from typing import Optional, List, Dict
 from enhanced_system_prompt import SYSTEM_PROMPT_WITH_WESTERN_MED
 from skill_loader_v3 import get_specialized_knowledge
 
+# Near top of main.py, after imports
+MESSAGE_LIMITS = {
+    'free': 10,      # 10 messages/month
+    'basic': 50,     # 50 messages/month  
+    'premium': 200,  # 200 messages/month
+    'pro': 500       # 500 messages/month
+}
+
+# Add this helper function
+def check_message_limit(user_id, tier):
+    """Check if user has exceeded monthly message limit"""
+    with get_db_context() as db:
+        # Get message count for current month
+        from datetime import datetime
+        current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0)
+        
+        message_count = db.query(Message).join(Conversation).filter(
+            Conversation.user_id == user_id,
+            Message.timestamp >= current_month_start,
+            Message.role == 'user'  # Only count user messages
+        ).count()
+        
+        limit = MESSAGE_LIMITS.get(tier, MESSAGE_LIMITS['free'])
+        
+        if message_count >= limit:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Monthly message limit reached ({limit} messages). Upgrade your plan for more messages."
+            )
 
 # ==================== CONFIGURATION ====================
 
