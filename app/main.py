@@ -432,10 +432,10 @@ async def startup_event():
     except Exception as e:
         print(f"⚠️ Conversations fix: {e}")
     
-    # ✅ CHECK PROJECT ID
+   # ✅ CHECK PROJECT ID AND SDK VERSION
     if ANTHROPIC_PROJECT_ID:
         print(f"✅ Claude Project ID configured: {ANTHROPIC_PROJECT_ID[:8]}...")
-        
+        print(f"📦 Anthropic SDK version: {anthropic.__version__}")
     else:
         print("⚠️ WARNING: ANTHROPIC_PROJECT_ID not set - skills will not be accessible!")
     
