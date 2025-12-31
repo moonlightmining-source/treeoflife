@@ -625,19 +625,7 @@ async def create_conversation_endpoint(request: Request, data: ConversationCreat
             "messages": messages
         }
         
-        if ANTHROPIC_PROJECT_ID:
-            try:
-                api_params["project_id"] = ANTHROPIC_PROJECT_ID
-                response = client.messages.create(**api_params)
-            except TypeError as e:
-                if "project_id" in str(e):
-                    del api_params["project_id"]
-                    response = client.messages.create(**api_params)
-                else:
-                    raise
-        else:
-            response = client.messages.create(**api_params)
-        
+                
         ai_content = response.content[0].text
         
         ai_message = Message(
@@ -759,19 +747,7 @@ async def send_message(request: Request, conversation_id: str, data: MessageCrea
             "messages": claude_messages
         }
         
-        if ANTHROPIC_PROJECT_ID:
-            try:
-                api_params["project_id"] = ANTHROPIC_PROJECT_ID
-                response = client.messages.create(**api_params)
-            except TypeError as e:
-                if "project_id" in str(e):
-                    del api_params["project_id"]
-                    response = client.messages.create(**api_params)
-                else:
-                    raise
-        else:
-            response = client.messages.create(**api_params)
-        
+                
         ai_content = response.content[0].text
         
         ai_message = Message(
