@@ -17,6 +17,9 @@ import base64
 import json
 import asyncio
 from typing import Optional, List, Dict
+from enhanced_system_prompt import SYSTEM_PROMPT_WITH_WESTERN_MED
+from skill_loader_v3 import get_specialized_knowledge
+
 
 # ==================== CONFIGURATION ====================
 
