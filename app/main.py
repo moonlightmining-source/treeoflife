@@ -625,14 +625,8 @@ async def create_conversation_endpoint(request: Request, data: ConversationCreat
         
         messages = [{"role": "user", "content": data.initial_message}]
         
-        if data.image:
-            messages[0] = {
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": data.image['type'], "data": data.image['data']}},
-                    {"type": "text", "text": data.initial_message}
-                ]
-                async def create_conversation_endpoint(request: Request, data: ConversationCreate):
+       @app.post("/api/chat/conversations")
+async def create_conversation_endpoint(request: Request, data: ConversationCreate):
     user_id = get_current_user_id(request)
     
     # Check message limit
@@ -640,7 +634,29 @@ async def create_conversation_endpoint(request: Request, data: ConversationCreat
         user = db.query(User).filter(User.id == user_id).first()
         check_message_limit(user_id, user.subscription_tier or 'free')
     
-    # ... rest of function
+    with get_db_context() as db:
+        conversation = Conversation(user_id=user_id, title=data.initial_message[:50])
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+        
+        user_message = Message(
+            conversation_id=conversation.id,
+            role='user',
+            content=data.initial_message
+        )
+        db.add(user_message)
+        db.commit()
+        
+        messages = [{"role": "user", "content": data.initial_message}]
+        
+        if data.image:
+            messages[0] = {
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": data.image['type'], "data": data.image['data']}},
+                    {"type": "text", "text": data.initial_message}
+                ]
             }
         
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -662,8 +678,9 @@ async def create_conversation_endpoint(request: Request, data: ConversationCreat
             ],
             "messages": messages
         }
-         response = client.messages.create(**api_params)
-                
+        
+        response = client.messages.create(**api_params)
+        
         ai_content = response.content[0].text
         
         ai_message = Message(
@@ -685,7 +702,6 @@ async def create_conversation_endpoint(request: Request, data: ConversationCreat
                 {"role": "assistant", "content": ai_content, "timestamp": ai_message.timestamp.isoformat()}
             ]
         }
-
 @app.get("/api/chat/conversations")
 async def get_conversations(request: Request):
     user_id = get_current_user_id(request)
