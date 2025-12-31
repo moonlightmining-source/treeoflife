@@ -609,26 +609,6 @@ class MessageCreate(BaseModel):
 async def create_conversation_endpoint(request: Request, data: ConversationCreate):
     user_id = get_current_user_id(request)
     
-    with get_db_context() as db:
-        conversation = Conversation(user_id=user_id, title=data.initial_message[:50])
-        db.add(conversation)
-        db.commit()
-        db.refresh(conversation)
-        
-        user_message = Message(
-            conversation_id=conversation.id,
-            role='user',
-            content=data.initial_message
-        )
-        db.add(user_message)
-        db.commit()
-        
-        messages = [{"role": "user", "content": data.initial_message}]
-        
-       @app.post("/api/chat/conversations")
-async def create_conversation_endpoint(request: Request, data: ConversationCreate):
-    user_id = get_current_user_id(request)
-    
     # Check message limit
     with get_db_context() as db:
         user = db.query(User).filter(User.id == user_id).first()
