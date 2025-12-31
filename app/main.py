@@ -607,10 +607,21 @@ async def create_conversation_endpoint(request: Request, data: ConversationCreat
         
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         
-        # ✅ ADD PROJECT_ID HERE
+        # Load specialized skill if needed
+        specialized = get_specialized_knowledge(data.initial_message)
+        final_prompt = SYSTEM_PROMPT_WITH_WESTERN_MED + specialized
+        
+        # Enable prompt caching for cost savings
         api_params = {
             "model": "claude-sonnet-4-20250514",
             "max_tokens": 2000,
+            "system": [
+                {
+                    "type": "text",
+                    "text": final_prompt,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ],
             "messages": messages
         }
         
@@ -728,12 +739,23 @@ async def send_message(request: Request, conversation_id: str, data: MessageCrea
                 ]
             }
         
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+       client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         
-        # ✅ ADD PROJECT_ID HERE
+        # Load specialized skill if needed
+        specialized = get_specialized_knowledge(data.message)
+        final_prompt = SYSTEM_PROMPT_WITH_WESTERN_MED + specialized
+        
+        # Enable prompt caching
         api_params = {
             "model": "claude-sonnet-4-20250514",
             "max_tokens": 2000,
+            "system": [
+                {
+                    "type": "text",
+                    "text": final_prompt,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ],
             "messages": claude_messages
         }
         
@@ -1306,12 +1328,23 @@ Please provide a comprehensive health analysis with the following sections:
 
 Use markdown formatting. Be compassionate, clear, and actionable."""
 
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+       client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         
-       # ✅ ADD PROJECT_ID HERE
+        # Always load Functional Medicine for comprehensive analysis
+        specialized = get_specialized_knowledge("functional medicine comprehensive health analysis")
+        final_prompt = SYSTEM_PROMPT_WITH_WESTERN_MED + specialized
+        
+        # Enable prompt caching
         api_params = {
             "model": "claude-sonnet-4-20250514",
             "max_tokens": 4000,
+            "system": [
+                {
+                    "type": "text",
+                    "text": final_prompt,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ],
             "messages": [{"role": "user", "content": prompt}]
         }
         
@@ -1373,12 +1406,23 @@ Please explain:
 
 Use simple language that a non-medical person can understand."""
         
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+       client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         
-        # ✅ ADD PROJECT_ID HERE
+        # Load functional medicine for lab analysis
+        specialized = get_specialized_knowledge(f"{value_name} lab test functional medicine")
+        final_prompt = SYSTEM_PROMPT_WITH_WESTERN_MED + specialized
+        
+        # Enable prompt caching
         api_params = {
             "model": "claude-sonnet-4-20250514",
             "max_tokens": 2000,
+            "system": [
+                {
+                    "type": "text",
+                    "text": final_prompt,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ],
             "messages": [{"role": "user", "content": prompt}]
         }
         
@@ -1493,11 +1537,18 @@ REQUIRED JSON FORMAT:
 
 Now extract all lab values from this document:"""
         
-        # ✅ ADD PROJECT_ID HERE
+      # Use Western Med only for extraction (no specialized skill needed)
         api_params = {
             "model": "claude-sonnet-4-20250514",
             "max_tokens": 3000,
             "temperature": 0,
+            "system": [
+                {
+                    "type": "text",
+                    "text": SYSTEM_PROMPT_WITH_WESTERN_MED,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ],
             "messages": [{
                 "role": "user",
                 "content": [
