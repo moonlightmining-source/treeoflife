@@ -1300,7 +1300,7 @@ Please provide a comprehensive health analysis with the following sections:
 
 Use markdown formatting. Be compassionate, clear, and actionable."""
 
-       client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         
         # Always load Functional Medicine for comprehensive analysis
         specialized = get_specialized_knowledge("functional medicine comprehensive health analysis")
@@ -1320,18 +1320,7 @@ Use markdown formatting. Be compassionate, clear, and actionable."""
             "messages": [{"role": "user", "content": prompt}]
         }
         
-        if ANTHROPIC_PROJECT_ID:
-            try:
-                api_params["project_id"] = ANTHROPIC_PROJECT_ID
-                message = client.messages.create(**api_params)
-            except TypeError as e:
-                if "project_id" in str(e):
-                    del api_params["project_id"]
-                    message = client.messages.create(**api_params)
-                else:
-                    raise
-        else:
-            message = client.messages.create(**api_params)
+        message = client.messages.create(**api_params)
         
         analysis_text = message.content[0].text
         sections = _parse_analysis_sections(analysis_text)
@@ -1341,7 +1330,6 @@ Use markdown formatting. Be compassionate, clear, and actionable."""
     except Exception as e:
         print(f"❌ AI analysis error: {str(e)}")
         raise HTTPException(status_code=500, detail="AI analysis failed")
-
 @app.post("/api/health/explain-value")
 async def explain_lab_value(request_data: dict, request: Request):
     """Get AI explanation for a specific lab value"""
