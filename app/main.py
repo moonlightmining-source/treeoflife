@@ -749,6 +749,11 @@ async def get_conversation(request: Request, conversation_id: str):
 async def send_message(request: Request, conversation_id: str, data: MessageCreate):
     user_id = get_current_user_id(request)
     
+    # Check message limit
+    with get_db_context() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        check_message_limit(user_id, user.subscription_tier or 'free')
+    
     with get_db_context() as db:
         conversation = db.query(Conversation).filter(
             Conversation.id == conversation_id,
@@ -781,7 +786,7 @@ async def send_message(request: Request, conversation_id: str, data: MessageCrea
                 ]
             }
         
-       client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         
         # Load specialized skill if needed
         specialized = get_specialized_knowledge(data.message)
@@ -799,18 +804,10 @@ async def send_message(request: Request, conversation_id: str, data: MessageCrea
                 }
             ],
             "messages": claude_messages
-            async def send_message(request: Request, conversation_id: str, data: MessageCreate):
-    user_id = get_current_user_id(request)
-    
-    # Check message limit
-    with get_db_context() as db:
-        user = db.query(User).filter(User.id == user_id).first()
-        check_message_limit(user_id, user.subscription_tier or 'free')
-    
-    # ... rest of function
         }
+        
         response = client.messages.create(**api_params)
-                
+        
         ai_content = response.content[0].text
         
         ai_message = Message(
@@ -831,6 +828,13 @@ async def send_message(request: Request, conversation_id: str, data: MessageCrea
                 "timestamp": ai_message.timestamp.isoformat()
             }
         }
+
+
+# ✅ PASTE CORRECTED send_message FUNCTION HERE
+
+@app.delete("/api/chat/conversations/{conversation_id}")
+async def delete_conversation(request: Request, conversation_id: str):
+    ... (this function stays unchanged) ...
 
 @app.delete("/api/chat/conversations/{conversation_id}")
 async def delete_conversation(request: Request, conversation_id: str):
