@@ -632,6 +632,15 @@ async def create_conversation_endpoint(request: Request, data: ConversationCreat
                     {"type": "image", "source": {"type": "base64", "media_type": data.image['type'], "data": data.image['data']}},
                     {"type": "text", "text": data.initial_message}
                 ]
+                async def create_conversation_endpoint(request: Request, data: ConversationCreate):
+    user_id = get_current_user_id(request)
+    
+    # Check message limit
+    with get_db_context() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        check_message_limit(user_id, user.subscription_tier or 'free')
+    
+    # ... rest of function
             }
         
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -653,7 +662,7 @@ async def create_conversation_endpoint(request: Request, data: ConversationCreat
             ],
             "messages": messages
         }
-        
+         response = client.messages.create(**api_params)
                 
         ai_content = response.content[0].text
         
@@ -774,8 +783,17 @@ async def send_message(request: Request, conversation_id: str, data: MessageCrea
                 }
             ],
             "messages": claude_messages
+            async def send_message(request: Request, conversation_id: str, data: MessageCreate):
+    user_id = get_current_user_id(request)
+    
+    # Check message limit
+    with get_db_context() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        check_message_limit(user_id, user.subscription_tier or 'free')
+    
+    # ... rest of function
         }
-        
+        response = client.messages.create(**api_params)
                 
         ai_content = response.content[0].text
         
