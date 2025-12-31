@@ -1366,7 +1366,7 @@ Please explain:
 
 Use simple language that a non-medical person can understand."""
         
-       client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         
         # Load functional medicine for lab analysis
         specialized = get_specialized_knowledge(f"{value_name} lab test functional medicine")
@@ -1386,18 +1386,7 @@ Use simple language that a non-medical person can understand."""
             "messages": [{"role": "user", "content": prompt}]
         }
         
-        if ANTHROPIC_PROJECT_ID:
-            try:
-                api_params["project_id"] = ANTHROPIC_PROJECT_ID
-                message = client.messages.create(**api_params)
-            except TypeError as e:
-                if "project_id" in str(e):
-                    del api_params["project_id"]
-                    message = client.messages.create(**api_params)
-                else:
-                    raise
-        else:
-            message = client.messages.create(**api_params)
+        message = client.messages.create(**api_params)
         
         explanation = message.content[0].text
         
