@@ -435,6 +435,8 @@ async def startup_event():
     # ✅ CHECK PROJECT ID
     if ANTHROPIC_PROJECT_ID:
         print(f"✅ Claude Project ID configured: {ANTHROPIC_PROJECT_ID[:8]}...")
+         import anthropic
+        print(f"📦 Anthropic SDK version: {anthropic.__version__}")
     else:
         print("⚠️ WARNING: ANTHROPIC_PROJECT_ID not set - skills will not be accessible!")
     
