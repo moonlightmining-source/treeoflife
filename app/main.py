@@ -809,20 +809,7 @@ async def send_message(request: Request, conversation_id: str, data: MessageCrea
             }
         }
 
-
-@app.delete("/api/chat/conversations/{conversation_id}")
-async def delete_conversation(request: Request, conversation_id: str):
-    user_id = get_current_user_id(request)
-    
-    with get_db_context() as db:
-        conversation = db.query(Conversation).filter(
-            Conversation.id == conversation_id,
-            Conversation.user_id == user_id
-        ).first()
-        
-        if not conversation:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-        
+       
         db.query(Message).filter(Message.conversation_id == conversation_id).delete()
         db.delete(conversation)
         db.commit()
