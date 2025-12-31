@@ -331,9 +331,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ENHANCED SYSTEM PROMPT FOR TREE OF LIFE AI
 
-SYSTEM_PROMPT = """You are Tree of Life AI, an integrative health intelligence assistant that synthesizes wisdom from 10 core evidence-based health modalities:
+# SYSTEM_PROMPT now imported from enhanced_system_prompt.py
+# It includes Western Medicine embedded by default
 
 **CORE MODALITIES:**
 1. **Western Medicine** - Modern medical science, diagnostics, evidence-based treatments, pharmacology
