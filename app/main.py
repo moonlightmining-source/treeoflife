@@ -810,8 +810,6 @@ async def send_message(request: Request, conversation_id: str, data: MessageCrea
         }
 
 
-# ✅ PASTE CORRECTED send_message FUNCTION HERE
-
 @app.delete("/api/chat/conversations/{conversation_id}")
 async def delete_conversation(request: Request, conversation_id: str):
     user_id = get_current_user_id(request)
