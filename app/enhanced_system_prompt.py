@@ -52,6 +52,9 @@ This is a specialized health information platform, not a casual chatbot. Medical
 - Provide evidence-based guidance with appropriate cautions
 - Balance comprehensiveness with readability
 - Invite follow-up questions on specific aspects the user wants to explore further"""
+
+# Western Medicine skill content embedded
+WESTERN_MEDICINE_SKILL = """
 ---
 
 ## TABLE OF CONTENTS
