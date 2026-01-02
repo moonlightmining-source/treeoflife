@@ -2083,7 +2083,332 @@ async def get_analytics(request: Request):
                 "score": log.compliance_score
             } for log in recent_logs]
         }
+# ==================== CLIENT PORTAL ENDPOINTS ====================
 
+@app.post("/api/client-view/generate")
+async def generate_client_view_link(request: Request, data: dict):
+    """Practitioner generates shareable link for client"""
+    practitioner_id = get_current_user_id(request)
+    family_member_id = data.get('family_member_id')
+    
+    with get_db_context() as db:
+        member = db.query(FamilyMember).filter(
+            FamilyMember.id == family_member_id,
+            FamilyMember.user_id == practitioner_id
+        ).first()
+        
+        if not member:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        token = secrets.token_urlsafe(32)
+        
+        db.execute(text("""
+            UPDATE client_view_tokens 
+            SET is_active = false 
+            WHERE family_member_id = :member_id
+        """), {'member_id': family_member_id})
+        
+        db.execute(text("""
+            INSERT INTO client_view_tokens (family_member_id, practitioner_id, token)
+            VALUES (:member_id, :prac_id, :token)
+        """), {
+            'member_id': family_member_id,
+            'prac_id': str(practitioner_id),
+            'token': token
+        })
+        db.commit()
+        
+        link = f"https://treeoflifeai.com/client/view/{token}"
+        
+        return {"link": link, "token": token}
+
+
+@app.get("/api/client-view/{token}")
+async def get_client_view_data(token: str):
+    """Load client's protocol data via token (no auth required)"""
+    
+    with get_db_context() as db:
+        result = db.execute(text("""
+            SELECT family_member_id, practitioner_id, is_active
+            FROM client_view_tokens
+            WHERE token = :token
+        """), {'token': token}).fetchone()
+        
+        if not result or not result[2]:
+            raise HTTPException(status_code=404, detail="Invalid or expired link")
+        
+        family_member_id = result[0]
+        practitioner_id = result[1]
+        
+        db.execute(text("""
+            UPDATE client_view_tokens
+            SET last_accessed = CURRENT_TIMESTAMP
+            WHERE token = :token
+        """), {'token': token})
+        db.commit()
+        
+        member = db.query(FamilyMember).filter(FamilyMember.id == family_member_id).first()
+        practitioner = db.query(User).filter(User.id == practitioner_id).first()
+        
+        assignment = db.query(ClientProtocol).filter(
+            ClientProtocol.client_id == family_member_id,
+            ClientProtocol.status == 'active'
+        ).first()
+        
+        if not assignment:
+            return {
+                "client_name": member.name,
+                "practitioner_name": practitioner.full_name or practitioner.email,
+                "protocol": None
+            }
+        
+        protocol = db.query(Protocol).filter(Protocol.id == assignment.protocol_id).first()
+        current_phase = db.query(ProtocolPhase).filter(
+            ProtocolPhase.protocol_id == assignment.protocol_id,
+            ProtocolPhase.week_number == assignment.current_week
+        ).first()
+        
+        recent_compliance = db.query(ComplianceLog).filter(
+            ComplianceLog.client_protocol_id == assignment.id
+        ).order_by(ComplianceLog.week_number.desc()).limit(4).all()
+        
+        return {
+            "client_name": member.name,
+            "practitioner_name": practitioner.full_name or practitioner.email,
+            "protocol": {
+                "name": protocol.name,
+                "current_week": assignment.current_week,
+                "total_weeks": protocol.duration_weeks,
+                "completion_percentage": assignment.completion_percentage,
+                "current_phase": {
+                    "title": current_phase.title if current_phase else "No phase data",
+                    "instructions": current_phase.instructions if current_phase else "",
+                    "herbs_supplements": current_phase.herbs_supplements if current_phase else [],
+                    "lifestyle_changes": current_phase.lifestyle_changes if current_phase else []
+                },
+                "recent_compliance": [{
+                    "week": log.week_number,
+                    "score": log.compliance_score
+                } for log in recent_compliance]
+            }
+        }
+
+
+@app.post("/api/client-view/{token}/compliance")
+async def mark_client_compliance(token: str, data: dict):
+    """Client marks items as complete"""
+    
+    compliance_score = data.get('compliance_score', 100)
+    
+    with get_db_context() as db:
+        result = db.execute(text("""
+            SELECT family_member_id FROM client_view_tokens
+            WHERE token = :token AND is_active = true
+        """), {'token': token}).fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Invalid link")
+        
+        family_member_id = result[0]
+        
+        assignment = db.query(ClientProtocol).filter(
+            ClientProtocol.client_id == family_member_id,
+            ClientProtocol.status == 'active'
+        ).first()
+        
+        if not assignment:
+            raise HTTPException(status_code=404, detail="No active protocol")
+        
+        log = ComplianceLog(
+            client_protocol_id=assignment.id,
+            week_number=assignment.current_week,
+            compliance_score=compliance_score,
+            notes="Self-reported via client view"
+        )
+        db.add(log)
+        db.commit()
+        
+        return {"success": True}
+
+
+@app.post("/api/client-view/{token}/message")
+async def send_client_message(
+    token: str,
+    message: str = Form(...),
+    image: Optional[UploadFile] = File(None)
+):
+    """Client sends message to practitioner with optional image"""
+    
+    with get_db_context() as db:
+        result = db.execute(text("""
+            SELECT family_member_id, practitioner_id
+            FROM client_view_tokens
+            WHERE token = :token AND is_active = true
+        """), {'token': token}).fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Invalid link")
+        
+        family_member_id = result[0]
+        practitioner_id = result[1]
+        
+        image_data = None
+        if image:
+            image_content = await image.read()
+            
+            if not image.content_type.startswith('image/'):
+                raise HTTPException(status_code=400, detail="Only image files allowed")
+            
+            if len(image_content) > 5 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail="Image too large (max 5MB)")
+            
+            image_base64 = base64.b64encode(image_content).decode('utf-8')
+            image_data = f"data:{image.content_type};base64,{image_base64}"
+        
+        db.execute(text("""
+            INSERT INTO client_messages 
+            (family_member_id, practitioner_id, message_text, image_base64)
+            VALUES (:member_id, :prac_id, :message, :image)
+        """), {
+            'member_id': family_member_id,
+            'prac_id': str(practitioner_id),
+            'message': message,
+            'image': image_data
+        })
+        db.commit()
+        
+        return {"success": True, "message": "Message sent to your practitioner"}
+
+
+@app.get("/api/practitioner/messages")
+async def get_practitioner_messages(request: Request, unread_only: bool = False):
+    """Practitioner views messages from clients"""
+    practitioner_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        query = """
+            SELECT 
+                cm.id, cm.family_member_id, fm.name as client_name,
+                cm.message_text, cm.image_base64, cm.is_read,
+                cm.replied_at, cm.reply_text, cm.created_at
+            FROM client_messages cm
+            JOIN family_members fm ON cm.family_member_id = fm.id
+            WHERE cm.practitioner_id = :prac_id
+        """
+        
+        if unread_only:
+            query += " AND cm.is_read = false"
+        
+        query += " ORDER BY cm.created_at DESC"
+        
+        results = db.execute(text(query), {'prac_id': str(practitioner_id)}).fetchall()
+        
+        messages = [{
+            'id': str(row[0]),
+            'client_id': row[1],
+            'client_name': row[2],
+            'message': row[3],
+            'has_image': row[4] is not None,
+            'image_data': row[4] if row[4] else None,
+            'is_read': row[5],
+            'replied_at': row[6].isoformat() if row[6] else None,
+            'reply': row[7],
+            'created_at': row[8].isoformat()
+        } for row in results]
+        
+        return {"messages": messages}
+
+
+@app.post("/api/practitioner/messages/{message_id}/mark-read")
+async def mark_message_read(request: Request, message_id: str):
+    """Mark message as read"""
+    practitioner_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        db.execute(text("""
+            UPDATE client_messages
+            SET is_read = true
+            WHERE id = :msg_id AND practitioner_id = :prac_id
+        """), {
+            'msg_id': message_id,
+            'prac_id': str(practitioner_id)
+        })
+        db.commit()
+    
+    return {"success": True}
+
+
+@app.post("/api/practitioner/messages/{message_id}/reply")
+async def reply_to_client_message(request: Request, message_id: str, data: dict):
+    """Practitioner replies to client message"""
+    practitioner_id = get_current_user_id(request)
+    reply_text = data.get('reply')
+    
+    with get_db_context() as db:
+        db.execute(text("""
+            UPDATE client_messages
+            SET 
+                reply_text = :reply,
+                replied_at = CURRENT_TIMESTAMP,
+                is_read = true
+            WHERE id = :msg_id AND practitioner_id = :prac_id
+        """), {
+            'reply': reply_text,
+            'msg_id': message_id,
+            'prac_id': str(practitioner_id)
+        })
+        db.commit()
+    
+    return {"success": True}
+
+
+@app.get("/api/client-view/{token}/replies")
+async def get_client_replies(token: str):
+    """Client checks for practitioner replies"""
+    
+    with get_db_context() as db:
+        result = db.execute(text("""
+            SELECT family_member_id
+            FROM client_view_tokens
+            WHERE token = :token AND is_active = true
+        """), {'token': token}).fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail="Invalid link")
+        
+        family_member_id = result[0]
+        
+        results = db.execute(text("""
+            SELECT 
+                message_text, reply_text, replied_at, created_at
+            FROM client_messages
+            WHERE family_member_id = :member_id
+              AND reply_text IS NOT NULL
+            ORDER BY created_at DESC
+            LIMIT 10
+        """), {'member_id': family_member_id}).fetchall()
+        
+        replies = [{
+            'your_question': row[0],
+            'practitioner_reply': row[1],
+            'replied_at': row[2].isoformat() if row[2] else None,
+            'asked_at': row[3].isoformat()
+        } for row in results]
+        
+        return {"replies": replies}
+
+
+@app.get("/client/view/{token}", response_class=HTMLResponse)
+async def serve_client_view_page(token: str):
+    """Serve the client view HTML page"""
+    html_path = "/app/app/templates/client_view.html"
+    
+    try:
+        with open(html_path, 'r') as f:
+            html_content = f.read()
+        return HTMLResponse(content=html_content)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Client view page not found")
 # ==================== HEALTH CHECK ====================
 
 @app.get("/")
