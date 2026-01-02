@@ -2123,7 +2123,7 @@ async def generate_client_view_link(request: Request, data: dict):
         })
         db.commit()
         
-        link = f"https://treeoflifeai.com/client/view/{token}"
+        link = f"https://treeoflife-vn25.onrender.com/client/view/{token}"
         
         return {"link": link, "token": token}
 
