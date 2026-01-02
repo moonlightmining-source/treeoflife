@@ -367,6 +367,56 @@ def run_migration():
                 print("  ✅ Fixed family_members.id auto-increment")
             except Exception as e:
                 print(f"  ⚠️ family_members.id fix: {e}")
+# ==================== CLIENT PORTAL TABLES ====================
+            
+            print("🔗 Creating client portal tables...")
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS client_view_tokens (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        family_member_id INTEGER REFERENCES family_members(id) ON DELETE CASCADE,
+                        practitioner_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                        token VARCHAR(255) UNIQUE NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        last_accessed TIMESTAMP,
+                        is_active BOOLEAN DEFAULT true
+                    )
+                """))
+                conn.commit()
+                print("  ✅ client_view_tokens table created")
+            except Exception as e:
+                print(f"  ⚠️ client_view_tokens: {e}")
+            
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS client_messages (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        family_member_id INTEGER REFERENCES family_members(id) ON DELETE CASCADE,
+                        practitioner_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                        message_text TEXT NOT NULL,
+                        image_base64 TEXT,
+                        is_read BOOLEAN DEFAULT false,
+                        replied_at TIMESTAMP,
+                        reply_text TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                conn.commit()
+                print("  ✅ client_messages table created")
+            except Exception as e:
+                print(f"  ⚠️ client_messages: {e}")
+            
+            try:
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_client_messages_practitioner 
+                    ON client_messages(practitioner_id, is_read)
+                """))
+                conn.commit()
+                print("  ✅ client_messages index created")
+            except Exception as e:
+                print(f"  ⚠️ index creation: {e}")
+            
+            print("✅ Client portal tables ready!")
             
             print("✅ Database migration completed!")
             
