@@ -2113,7 +2113,7 @@ async def generate_client_view_link(request: Request, data: dict):
             WHERE family_member_id = :member_id
         """), {'member_id': family_member_id})
         
-       db.execute(text("""
+        db.execute(text("""
             INSERT INTO client_view_tokens (family_member_id, practitioner_id, token, is_active)
             VALUES (:member_id, :prac_id, :token, true)
         """), {
