@@ -431,7 +431,6 @@ import os
 if os.path.exists("app/static"):
     app.mount("/static", StaticFiles(directory="app/static"), name="static")
     print("✅ Static files mounted from app/static/")
-   
 else:
     print("⚠️  /app/static/ directory not found - PWA features disabled")
 
