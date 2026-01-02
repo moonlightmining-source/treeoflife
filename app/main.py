@@ -348,6 +348,7 @@ def run_migration():
             print("✅ Health profile fields checked!")
             
             print("👨‍👩‍👧‍👦 Fixing family_members ID auto-increment...")
+            print("👨‍👩‍👧‍👦 Fixing family_members ID auto-increment...")
             try:
                 conn.execute(text("""
                     DO $$ 
@@ -368,69 +369,91 @@ def run_migration():
                 print("  ✅ Fixed family_members.id auto-increment")
             except Exception as e:
                 print(f"  ⚠️ family_members.id fix: {e}")
-# ==================== CLIENT PORTAL TABLES ====================
             
-
-print("🔗 Checking client portal tables...")
-try:
-    # Check if table exists
-    result = conn.execute(text("""
-        SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_name = 'client_view_tokens'
-        )
-    """))
-    table_exists = result.fetchone()[0]
+            # ==================== CLIENT PORTAL TABLES ====================
+            
+            print("🔗 Checking client portal tables...")
+            try:
+                result = conn.execute(text("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = 'client_view_tokens'
+                    )
+                """))
+                table_exists = result.fetchone()[0]
+                
+                if not table_exists:
+                    print("  📝 Creating client_view_tokens table...")
+                    conn.execute(text("""
+                        CREATE TABLE client_view_tokens (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            family_member_id INTEGER REFERENCES family_members(id) ON DELETE CASCADE,
+                            practitioner_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                            token VARCHAR(255) UNIQUE NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            last_accessed TIMESTAMP,
+                            is_active BOOLEAN DEFAULT true
+                        )
+                    """))
+                    conn.commit()
+                    print("  ✅ client_view_tokens table created")
+                else:
+                    print("  ✅ client_view_tokens table exists (preserved)")
+                    
+            except Exception as e:
+                print(f"  ⚠️ client_view_tokens: {e}")
+            
+            try:
+                result = conn.execute(text("""
+                    SELECT EXISTS (
+                        SELECT FROM information_schema.tables 
+                        WHERE table_name = 'client_messages'
+                    )
+                """))
+                table_exists = result.fetchone()[0]
+                
+                if not table_exists:
+                    print("  📝 Creating client_messages table...")
+                    conn.execute(text("""
+                        CREATE TABLE client_messages (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            family_member_id INTEGER REFERENCES family_members(id) ON DELETE CASCADE,
+                            practitioner_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                            message_text TEXT NOT NULL,
+                            image_base64 TEXT,
+                            is_read BOOLEAN DEFAULT false,
+                            replied_at TIMESTAMP,
+                            reply_text TEXT,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """))
+                    conn.commit()
+                    print("  ✅ client_messages table created")
+                else:
+                    print("  ✅ client_messages table exists (preserved)")
+                    
+            except Exception as e:
+                print(f"  ⚠️ client_messages: {e}")
+            
+            try:
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_client_messages_practitioner 
+                    ON client_messages(practitioner_id, is_read)
+                """))
+                conn.commit()
+                print("  ✅ client_messages index created")
+            except Exception as e:
+                print(f"  ⚠️ index creation: {e}")
+            
+            print("✅ Client portal tables ready!")
+            
+    except Exception as e:
+        print(f"❌ Migration error: {e}")
+        raise
     
-    if not table_exists:
-        print("  📝 Creating client_view_tokens table...")
-        conn.execute(text("""
-            CREATE TABLE client_view_tokens (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                family_member_id INTEGER REFERENCES family_members(id) ON DELETE CASCADE,
-                practitioner_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                token VARCHAR(255) UNIQUE NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_accessed TIMESTAMP,
-                is_active BOOLEAN DEFAULT true
-            )
-        """))
-        conn.commit()
-        print("  ✅ client_view_tokens table created")
-    else:
-        print("  ✅ client_view_tokens table exists (preserved)")
-        
-except Exception as e:
-    print(f"  ⚠️ client_view_tokens: {e}")
+    print("✅ Database migration completed!")
 
-try:
-    result = conn.execute(text("""
-        SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_name = 'client_messages'
-        )
-    """))
-    table_exists = result.fetchone()[0]
-    
-    if not table_exists:
-        print("  📝 Creating client_messages table...")
-        conn.execute(text("""
-            CREATE TABLE client_messages (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                family_member_id INTEGER REFERENCES family_members(id) ON DELETE CASCADE,
-                practitioner_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                message_text TEXT NOT NULL,
-                image_base64 TEXT,
-                is_read BOOLEAN DEFAULT false,
-                replied_at TIMESTAMP,
-                reply_text TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
-        conn.commit()
-        print("  ✅ client_messages table created")
-    else:
-        print("  ✅ client_messages table exists (preserved)")
+# ==================== FASTAPI APP ====================
 
 # ==================== FASTAPI APP ====================
 app = FastAPI(title="Tree of Life AI API")
