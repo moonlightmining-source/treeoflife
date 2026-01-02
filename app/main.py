@@ -2407,7 +2407,7 @@ async def get_client_replies(token: str):
 @app.get("/client/view/{token}", response_class=HTMLResponse)
 async def serve_client_view_page(token: str):
     """Serve the client view HTML page"""
-    html_path = "app/templates/client_view.html"
+   html_path = "/app/app/templates/client_view.html"
     
     try:
         with open(html_path, 'r') as f:
