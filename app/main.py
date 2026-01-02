@@ -428,10 +428,10 @@ def run_migration():
 # ==================== FASTAPI APP ====================
 app = FastAPI(title="Tree of Life AI API")
 import os
-if os.path.exists("/app/app/static"):
-    app.mount("/static", StaticFiles(directory="/app/app/static"), name="static")
-
-    print("✅ Static files mounted from /app/static/")
+if os.path.exists("app/static"):
+    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    print("✅ Static files mounted from app/static/")
+   
 else:
     print("⚠️  /app/static/ directory not found - PWA features disabled")
 
@@ -2407,7 +2407,7 @@ async def get_client_replies(token: str):
 @app.get("/client/view/{token}", response_class=HTMLResponse)
 async def serve_client_view_page(token: str):
     """Serve the client view HTML page"""
-   html_path = "/app/app/templates/client_view.html"
+    html_path = "app/templates/client_view.html"
     
     try:
         with open(html_path, 'r') as f:
