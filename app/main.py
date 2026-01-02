@@ -352,6 +352,7 @@ def run_migration():
 
 # ==================== FASTAPI APP ====================
 app = FastAPI(title="Tree of Life AI API")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
