@@ -347,7 +347,7 @@ def run_migration():
             
             print("✅ Health profile fields checked!")
             
-            print("👨‍👩‍👧‍👦 Fixing family_members ID auto-increment...")
+            
             print("👨‍👩‍👧‍👦 Fixing family_members ID auto-increment...")
             try:
                 conn.execute(text("""
