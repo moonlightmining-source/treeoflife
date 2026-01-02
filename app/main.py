@@ -234,7 +234,31 @@ class ComplianceLog(Base):
     compliance_score = Column(Integer)
     notes = Column(Text)
     logged_at = Column(DateTime, default=datetime.utcnow)
+# ==================== CLIENT PORTAL MODELS ====================
 
+class ClientViewToken(Base):
+    __tablename__ = "client_view_tokens"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
+    family_member_id = Column(Integer, ForeignKey('family_members.id'), nullable=False)
+    practitioner_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    token = Column(String(255), unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_accessed = Column(DateTime)
+    is_active = Column(Boolean, default=True)
+
+class ClientMessage(Base):
+    __tablename__ = "client_messages"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text('gen_random_uuid()'))
+    family_member_id = Column(Integer, ForeignKey('family_members.id'), nullable=False)
+    practitioner_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False)
+    message_text = Column(Text, nullable=False)
+    image_base64 = Column(Text)
+    is_read = Column(Boolean, default=False)
+    replied_at = Column(DateTime)
+    reply_text = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
 # ==================== DATABASE MIGRATION ====================
 
 def run_migration():
