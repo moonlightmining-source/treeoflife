@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="Your personalized health protocol portal">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Health Portal">
+    
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    
+    <title>Your Health Protocol</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        /* Install Banner - HYBRID VERSION */
+        .install-banner {
+            position: fixed;
+            bottom: -200px;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+            transition: bottom 0.3s ease;
+            z-index: 2000;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        
+        .install-banner.show {
+            bottom: 0;
+        }
+        
+        .install-content {
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .install-icon {
+            font-size: 40px;
+        }
+        
+        .install-text {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .install-text h3 {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+        
+        .install-text p {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        
+        .install-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .install-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        .install-btn.primary {
+            background: white;
+            color: #667eea;
+        }
+        
+        .install-btn.secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+        }
+        
+        .install-btn.download {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+        
+        .practitioner-name {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+        
+        .protocol-name {
+            font-size: 18px;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .progress-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+        
+        .week-info {
+            text-align: center;
+            font-size: 14px;
+            color: #4a5568;
+        }
+        
+        .phase-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 20px 0 10px;
+            color: #2d3748;
+        }
+        
+        .instructions {
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .checklist {
+            list-style: none;
+        }
+        
+        .checklist li {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f7fafc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .checklist li:hover {
+            background: #edf2f7;
+            transform: translateX(5px);
+        }
+        
+        .checklist li.completed {
+            background: #c6f6d5;
+            text-decoration: line-through;
+            color: #276749;
+        }
+        
+        .checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #cbd5e0;
+            border-radius: 6px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .completed .checkbox {
+            background: #48bb78;
+            border-color: #48bb78;
+        }
+        
+        .completed .checkbox::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+        }
+        
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s ease;
+        }
+        
+        .submit-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+        
+        .question-btn {
+            width: 100%;
+            padding: 15px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .question-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 30px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #a0aec0;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .close-btn:hover {
+            color: #4a5568;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .image-upload {
+            margin: 15px 0;
+        }
+        
+        .image-upload-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #f7fafc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #4a5568;
+            transition: all 0.2s ease;
+        }
+        
+        .image-upload-btn:hover {
+            background: #edf2f7;
+            border-color: #667eea;
+        }
+        
+        .image-preview {
+            margin-top: 15px;
+            position: relative;
+        }
+        
+        .image-preview img {
+            width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .remove-image {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #f56565;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .send-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .send-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .replies-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e2e8f0;
+        }
+        
+        .reply-card {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .reply-question {
+            font-size: 14px;
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+        
+        .reply-answer {
+            font-size: 14px;
+            color: #2d3748;
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .reply-date {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 8px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #a0aec0;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Install Banner - HYBRID VERSION -->
+    <div class="install-banner" id="install-banner">
+        <div class="install-content" id="install-content">
+            <div class="install-icon">📱</div>
+            <div class="install-text">
+                <h3>Add to Home Screen</h3>
+                <p>Quick access to your health portal</p>
+            </div>
+            <div class="install-buttons" id="install-buttons">
+                <button class="install-btn primary" id="install-btn" onclick="installApp()">Install</button>
+                <button class="install-btn secondary" onclick="dismissInstall()">Later</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">🌿</div>
+            <h1 id="practitioner-name">Your Practitioner</h1>
+            <p class="practitioner-name">Health Protocol</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Hello, <span id="client-name">Client</span>!</div>
+            <div class="protocol-name" id="protocol-name">Loading...</div>
+            
+            <div class="progress-section">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="week-info">
+                    Week <span id="current-week">1</span> of <span id="total-weeks">12</span>
+                    (<span id="completion-pct">0</span>% Complete)
+                </div>
+            </div>
+            
+            <h2 class="phase-title" id="phase-title">This Week's Protocol</h2>
+            <p class="instructions" id="instructions"></p>
+            
+            <h3 style="margin: 20px 0 10px; color: #2d3748;">Herbs & Supplements:</h3>
+            <ul class="checklist" id="herbs-list"></ul>
+            
+            <h3 style="margin: 20px 0 10px; color: #2d3748;">Lifestyle Changes:</h3>
+            <ul class="checklist" id="lifestyle-list"></ul>
+            
+            <button class="submit-btn" onclick="markComplete()">
+                ✓ Mark All Complete
+            </button>
+            
+            <button class="question-btn" onclick="openQuestionModal()">
+                💬 Ask My Care Provider a Question
+            </button>
+            
+            <div class="replies-section" id="replies-section" style="display:none;">
+                <h3 style="color: #2d3748; margin-bottom: 15px;">Recent Replies from Your Practitioner:</h3>
+                <div id="replies-list"></div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Powered by Tree of Life AI
+        </div>
+    </div>
+
+    <!-- Question Modal -->
+    <div class="modal" id="question-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Ask Your Care Provider</h2>
+                <button class="close-btn" onclick="closeQuestionModal()">&times;</button>
+            </div>
+            
+            <textarea 
+                id="question-text" 
+                placeholder="Type your question here... (e.g., 'I'm experiencing some side effects from the supplements' or 'Can I adjust the timing of my protocol?')"
+            ></textarea>
+            
+            <div class="image-upload">
+                <label class="image-upload-btn">
+                    📸 Attach Image (Optional)
+                    <input 
+                        type="file" 
+                        id="image-input" 
+                        accept="image/*" 
+                        style="display:none"
+                        onchange="handleImageUpload(event)"
+                    >
+                </label>
+                <div class="image-preview" id="image-preview" style="display:none;">
+                    <img id="preview-img" src="" alt="Preview">
+                    <button class="remove-image" onclick="removeImage()">×</button>
+                </div>
+            </div>
+            
+            <button class="send-btn" onclick="sendQuestion()" id="send-btn">
+                Send Question
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const token = window.location.pathname.split('/').pop();
+        let completedItems = new Set();
+        let selectedImage = null;
+        let deferredPrompt = null;
+
+        // HYBRID INSTALL SYSTEM
+        function detectPlatform() {
+            const ua = navigator.userAgent;
+            const isIOS = /iPhone|iPad|iPod/.test(ua);
+            const isAndroid = /Android/.test(ua);
+            const isChrome = /Chrome/.test(ua) && !/Edg/.test(ua);
+            const isEdge = /Edg/.test(ua);
+            const isFirefox = /Firefox/.test(ua);
+            const isSafari = /Safari/.test(ua) && !isChrome && !isEdge;
+            const isMobile = isIOS || isAndroid;
+            
+            return { isIOS, isAndroid, isChrome, isEdge, isFirefox, isSafari, isMobile };
+        }
+
+        function showInstallOptions() {
+            const platform = detectPlatform();
+            const banner = document.getElementById('install-banner');
+            const content = document.getElementById('install-content');
+            const buttons = document.getElementById('install-buttons');
+            
+            // iOS Safari - Show manual instructions
+            if (platform.isIOS && platform.isSafari) {
+                content.innerHTML = `
+                    <div class="install-icon">📱</div>
+                    <div class="install-text">
+                        <h3>Add to Home Screen</h3>
+                        <p>Tap Share button, then "Add to Home Screen"</p>
+                    </div>
+                    <div class="install-buttons">
+                        <button class="install-btn secondary" onclick="dismissInstall()">Got it</button>
+                    </div>
+                `;
+                banner.classList.add('show');
+            }
+            // Chrome/Edge - PWA Install
+            else if ((platform.isChrome || platform.isEdge) && deferredPrompt) {
+                banner.classList.add('show');
+            }
+            // Firefox/Safari Desktop - Download shortcut
+            else if ((platform.isFirefox || (platform.isSafari && !platform.isMobile)) && !platform.isMobile) {
+                const isWindows = /Windows/.test(navigator.userAgent);
+                const isMac = /Mac/.test(navigator.userAgent);
+                
+                content.innerHTML = `
+                    <div class="install-icon">🔗</div>
+                    <div class="install-text">
+                        <h3>Add Shortcut to Desktop</h3>
+                        <p>Download and save to your desktop for quick access</p>
+                    </div>
+                    <div class="install-buttons">
+                        ${isWindows ? '<button class="install-btn download" onclick="downloadWindowsShortcut()">⬇ Download (Windows)</button>' : ''}
+                        ${isMac ? '<button class="install-btn download" onclick="downloadMacShortcut()">⬇ Download (Mac)</button>' : ''}
+                        <button class="install-btn secondary" onclick="dismissInstall()">Later</button>
+                    </div>
+                `;
+                banner.classList.add('show');
+            }
+        }
+
+        // PWA Install (Chrome/Edge)
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            setTimeout(() => {
+                if (!localStorage.getItem('installDismissed')) {
+                    showInstallOptions();
+                }
+            }, 3000);
+        });
+
+        async function installApp() {
+            if (!deferredPrompt) {
+                alert('Install not available. Try using Chrome or Edge.');
+                return;
+            }
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                console.log('App installed');
+            }
+            
+            deferredPrompt = null;
+            document.getElementById('install-banner').classList.remove('show');
+        }
+
+        // Download Shortcuts (Firefox/Safari Desktop)
+        function downloadWindowsShortcut() {
+            const url = window.location.href;
+            const iconUrl = window.location.origin + '/static/health-portal.ico';
+            const shortcut = `[InternetShortcut]
+URL=${url}
+IconFile=${iconUrl}
+IconIndex=0`;
+            
+            const blob = new Blob([shortcut], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'Health Protocol.url';
+            link.click();
+            
+            // Provide instructions
+            const instructions = document.createElement('div');
+            instructions.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:30px;border-radius:15px;box-shadow:0 10px 40px rgba(0,0,0,0.3);z-index:9999;max-width:400px;';
+            instructions.innerHTML = `
+                <h3 style="margin:0 0 15px;color:#667eea;">📥 Shortcut Downloaded!</h3>
+                <p style="margin:0 0 10px;line-height:1.6;color:#4a5568;">
+                    <strong>How to install:</strong><br>
+                    1. Go to your <strong>Downloads</strong> folder<br>
+                    2. Find <strong>"Health Protocol.url"</strong><br>
+                    3. <strong>Drag it</strong> to your Desktop<br>
+                    4. Double-click to open!
+                </p>
+                <button onclick="this.parentElement.remove()" style="width:100%;padding:12px;background:#667eea;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;margin-top:15px;">Got it!</button>
+            `;
+            document.body.appendChild(instructions);
+            
+            setTimeout(dismissInstall, 5000);
+        }
+
+        function downloadMacShortcut() {
+            const url = window.location.href;
+            const shortcut = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>URL</key>
+    <string>${url}</string>
+</dict>
+</plist>`;
+            
+            const blob = new Blob([shortcut], { type: 'application/xml' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'Health Protocol.webloc';
+            link.click();
+            
+            // Provide instructions
+            const instructions = document.createElement('div');
+            instructions.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:30px;border-radius:15px;box-shadow:0 10px 40px rgba(0,0,0,0.3);z-index:9999;max-width:400px;';
+            instructions.innerHTML = `
+                <h3 style="margin:0 0 15px;color:#667eea;">📥 Shortcut Downloaded!</h3>
+                <p style="margin:0 0 10px;line-height:1.6;color:#4a5568;">
+                    <strong>How to install:</strong><br>
+                    1. Go to your <strong>Downloads</strong> folder<br>
+                    2. Find <strong>"Health Protocol.webloc"</strong><br>
+                    3. <strong>Drag it</strong> to your Desktop or Dock<br>
+                    4. Click to open!
+                </p>
+                <button onclick="this.parentElement.remove()" style="width:100%;padding:12px;background:#667eea;color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;margin-top:15px;">Got it!</button>
+            `;
+            document.body.appendChild(instructions);
+            
+            setTimeout(dismissInstall, 5000);
+        }
+
+        function dismissInstall() {
+            document.getElementById('install-banner').classList.remove('show');
+            localStorage.setItem('installDismissed', 'true');
+        }
+
+        // Show install options on load (for non-PWA browsers)
+        setTimeout(() => {
+            if (!localStorage.getItem('installDismissed') && !deferredPrompt) {
+                showInstallOptions();
+            }
+        }, 3000);
+
+        // Register Service Worker (PWA)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/service-worker.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed'));
+        }
+
+        async function loadProtocol() {
+            try {
+                const response = await fetch(`/api/client-view/${token}`);
+                const data = await response.json();
+                
+                document.getElementById('client-name').textContent = data.client_name;
+                document.getElementById('practitioner-name').textContent = data.practitioner_name;
+                
+                if (!data.protocol) {
+                    document.getElementById('protocol-name').textContent = 'No active protocol';
+                    return;
+                }
+                
+                const protocol = data.protocol;
+                document.getElementById('protocol-name').textContent = protocol.name;
+                document.getElementById('current-week').textContent = protocol.current_week;
+                document.getElementById('total-weeks').textContent = protocol.total_weeks;
+                document.getElementById('completion-pct').textContent = protocol.completion_percentage;
+                document.getElementById('progress-fill').style.width = protocol.completion_percentage + '%';
+                
+                const phase = protocol.current_phase;
+                document.getElementById('phase-title').textContent = phase.title;
+                document.getElementById('instructions').textContent = phase.instructions;
+                
+                const herbsList = document.getElementById('herbs-list');
+                herbsList.innerHTML = '';
+                phase.herbs_supplements.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    const itemText = typeof item === 'string' ? item : `${item.name || item} - ${item.dosage || ''}`;
+                    li.innerHTML = `
+                        <div class="checkbox"></div>
+                        <span>${itemText}</span>
+                    `;
+                    li.onclick = () => toggleItem(li, `herb-${index}`);
+                    herbsList.appendChild(li);
+                });
+                
+                const lifestyleList = document.getElementById('lifestyle-list');
+                lifestyleList.innerHTML = '';
+                phase.lifestyle_changes.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div class="checkbox"></div>
+                        <span>${item}</span>
+                    `;
+                    li.onclick = () => toggleItem(li, `lifestyle-${index}`);
+                    lifestyleList.appendChild(li);
+                });
+                
+            } catch (error) {
+                console.error('Error loading protocol:', error);
+                alert('Error loading your protocol. Please contact your practitioner.');
+            }
+        }
+
+        async function loadReplies() {
+            try {
+                const response = await fetch(`/api/client-view/${token}/replies`);
+                const data = await response.json();
+                
+                if (data.replies && data.replies.length > 0) {
+                    document.getElementById('replies-section').style.display = 'block';
+                    
+                    const repliesList = document.getElementById('replies-list');
+                    repliesList.innerHTML = '';
+                    
+                    data.replies.forEach(reply => {
+                        const card = document.createElement('div');
+                        card.className = 'reply-card';
+                        card.innerHTML = `
+                            <div class="reply-question">Your question: "${reply.your_question}"</div>
+                            <div class="reply-answer">${reply.practitioner_reply}</div>
+                            <div class="reply-date">Replied ${new Date(reply.replied_at).toLocaleDateString()}</div>
+                        `;
+                        repliesList.appendChild(card);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading replies:', error);
+            }
+        }
+
+        function toggleItem(element, itemId) {
+            element.classList.toggle('completed');
+            if (element.classList.contains('completed')) {
+                completedItems.add(itemId);
+            } else {
+                completedItems.delete(itemId);
+            }
+        }
+
+        async function markComplete() {
+            const totalItems = document.querySelectorAll('.checklist li').length;
+            const completedCount = completedItems.size;
+            const complianceScore = Math.round((completedCount / totalItems) * 100);
+            
+            try {
+                await fetch(`/api/client-view/${token}/compliance`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({compliance_score: complianceScore})
+                });
+                
+                alert(`✓ Progress saved! ${completedCount}/${totalItems} items completed.`);
+                
+                document.querySelectorAll('.checklist li').forEach(li => {
+                    li.classList.add('completed');
+                });
+                
+            } catch (error) {
+                console.error('Error saving:', error);
+                alert('Error saving your progress. Please try again.');
+            }
+        }
+
+        function openQuestionModal() {
+            document.getElementById('question-modal').classList.add('active');
+        }
+
+        function closeQuestionModal() {
+            document.getElementById('question-modal').classList.remove('active');
+            document.getElementById('question-text').value = '';
+            removeImage();
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file');
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image too large. Maximum size is 5MB');
+                return;
+            }
+            
+            selectedImage = file;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('preview-img').src = e.target.result;
+                document.getElementById('image-preview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage() {
+            selectedImage = null;
+            document.getElementById('image-input').value = '';
+            document.getElementById('image-preview').style.display = 'none';
+        }
+
+        async function sendQuestion() {
+            const questionText = document.getElementById('question-text').value.trim();
+            
+            if (!questionText) {
+                alert('Please enter a question');
+                return;
+            }
+            
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('message', questionText);
+                
+                if (selectedImage) {
+                    formData.append('image', selectedImage);
+                }
+                
+                const response = await fetch(`/api/client-view/${token}/message`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('✓ Your question has been sent to your care provider!');
+                    closeQuestionModal();
+                } else {
+                    alert('Error sending message. Please try again.');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error sending message. Please try again.');
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send Question';
+            }
+        }
+
+        loadProtocol();
+        loadReplies();
+        setInterval(loadReplies, 30000);
+    </script>
+</body>
+</html>
