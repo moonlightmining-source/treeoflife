@@ -1172,7 +1172,162 @@ async def update_health_profile(request: Request):
         db.commit()
         
         return {"success": True}
+# ==================== AI ANALYSIS ENDPOINTS ====================
 
+@app.post("/api/health/ai-analysis/save")
+async def save_ai_analysis(request: Request):
+    """Save AI health analysis for a client"""
+    try:
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        user_id = verify_token(token)
+        
+        data = await request.json()
+        client_id = data.get('client_id')
+        analysis_data = data.get('analysis_data')
+        
+        if not client_id or not analysis_data:
+            raise HTTPException(status_code=400, detail="Missing client_id or analysis_data")
+        
+        # Verify client belongs to this practitioner
+        result = supabase.table('family_members').select('*').eq('id', client_id).eq('user_id', user_id).execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Save analysis to PostgreSQL
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO ai_analyses (user_id, client_id, analysis_data, created_at)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+        """, (user_id, client_id, json.dumps(analysis_data), datetime.now()))
+        
+        analysis_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        
+        return {
+            'success': True,
+            'analysis_id': analysis_id,
+            'message': 'Analysis saved successfully'
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error saving AI analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/health/ai-analysis/history/{client_id}")
+async def get_analysis_history(request: Request, client_id: int):
+    """Get all AI analyses for a specific client"""
+    try:
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        user_id = verify_token(token)
+        
+        # Verify client belongs to this practitioner
+        result = supabase.table('family_members').select('*').eq('id', client_id).eq('user_id', user_id).execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Get all analyses for this client
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, created_at
+            FROM ai_analyses
+            WHERE client_id = %s AND user_id = %s
+            ORDER BY created_at DESC
+        """, (client_id, user_id))
+        
+        analyses = []
+        for row in cursor.fetchall():
+            analyses.append({
+                'id': row[0],
+                'created_at': row[1].isoformat()
+            })
+        
+        cursor.close()
+        
+        return {
+            'analyses': analyses,
+            'count': len(analyses)
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error fetching analysis history: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/health/ai-analysis/{analysis_id}")
+async def get_analysis(request: Request, analysis_id: int):
+    """Get a specific AI analysis by ID"""
+    try:
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        user_id = verify_token(token)
+        
+        # Get analysis
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, user_id, client_id, analysis_data, created_at, updated_at
+            FROM ai_analyses
+            WHERE id = %s AND user_id = %s
+        """, (analysis_id, user_id))
+        
+        row = cursor.fetchone()
+        cursor.close()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        
+        return {
+            'id': row[0],
+            'user_id': str(row[1]),
+            'client_id': row[2],
+            'analysis_data': row[3],
+            'created_at': row[4].isoformat(),
+            'updated_at': row[5].isoformat() if row[5] else None
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error fetching analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/health/ai-analysis/{analysis_id}")
+async def delete_analysis(request: Request, analysis_id: int):
+    """Delete a specific AI analysis"""
+    try:
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        user_id = verify_token(token)
+        
+        # Delete analysis
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM ai_analyses
+            WHERE id = %s AND user_id = %s
+        """, (analysis_id, user_id))
+        
+        if cursor.rowcount == 0:
+            cursor.close()
+            raise HTTPException(status_code=404, detail="Analysis not found")
+        
+        conn.commit()
+        cursor.close()
+        
+        return {
+            'success': True,
+            'message': 'Analysis deleted successfully'
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Error deleting analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 # ==================== HEALTH METRICS ENDPOINTS ====================
 
 class HealthMetricCreate(BaseModel):
