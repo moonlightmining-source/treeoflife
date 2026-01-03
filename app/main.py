@@ -456,6 +456,32 @@ def run_migration():
             
             print("✅ Client portal tables ready!")
             
+            # ==================== PROTOCOL CONTENT FIELDS ====================
+            
+            print("🌿 Checking protocol content fields...")
+            protocol_migrations = [
+                "ALTER TABLE protocols ADD COLUMN IF NOT EXISTS supplements JSONB",
+                "ALTER TABLE protocols ADD COLUMN IF NOT EXISTS exercises JSONB",
+                "ALTER TABLE protocols ADD COLUMN IF NOT EXISTS lifestyle_changes JSONB",
+                "ALTER TABLE protocols ADD COLUMN IF NOT EXISTS nutrition JSONB",
+                "ALTER TABLE protocols ADD COLUMN IF NOT EXISTS sleep JSONB",
+                "ALTER TABLE protocols ADD COLUMN IF NOT EXISTS stress_management TEXT",
+                "ALTER TABLE protocols ADD COLUMN IF NOT EXISTS weekly_notes JSONB"
+            ]
+            
+            for query in protocol_migrations:
+                try:
+                    conn.execute(text(query))
+                    conn.commit()
+                except Exception as e:
+                    print(f"  ⚠️  Protocol field: {e}")
+            
+            print("✅ Protocol content fields checked!")
+            
+    except Exception as e:
+        print(f"❌ Migration error: {e}")
+        raise
+            
     except Exception as e:
         print(f"❌ Migration error: {e}")
         raise
