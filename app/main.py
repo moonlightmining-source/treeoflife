@@ -2118,6 +2118,187 @@ async def get_analytics(request: Request):
                 "score": log.compliance_score
             } for log in recent_logs]
         }
+    
+# ==================== PRO DASHBOARD ENDPOINTS ====================
+
+@app.get("/api/pro/statistics")
+async def get_pro_statistics(request: Request):
+    """Get real-time dashboard statistics with period-over-period changes"""
+    user_id = get_current_user_id(request)
+    
+    with engine.connect() as conn:
+        # Current date boundaries
+        now = datetime.now()
+        start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_of_last_month = (start_of_month - timedelta(days=1)).replace(day=1)
+        start_of_week = now - timedelta(days=now.weekday())
+        start_of_last_week = start_of_week - timedelta(days=7)
+        
+        # ACTIVE CLIENTS (this month vs last month)
+        current_clients = conn.execute(text("""
+            SELECT COUNT(DISTINCT cvt.id) 
+            FROM client_view_tokens cvt
+            WHERE cvt.practitioner_id = :user_id 
+            AND cvt.is_active = true
+            AND cvt.created_at >= :start_of_month
+        """), {
+            'user_id': str(user_id),
+            'start_of_month': start_of_month
+        }).scalar() or 0
+        
+        last_month_clients = conn.execute(text("""
+            SELECT COUNT(DISTINCT cvt.id) 
+            FROM client_view_tokens cvt
+            WHERE cvt.practitioner_id = :user_id 
+            AND cvt.is_active = true
+            AND cvt.created_at >= :start_of_last_month
+            AND cvt.created_at < :start_of_month
+        """), {
+            'user_id': str(user_id),
+            'start_of_last_month': start_of_last_month,
+            'start_of_month': start_of_month
+        }).scalar() or 0
+        
+        clients_change = current_clients - last_month_clients
+        
+        # TOTAL PROTOCOLS & ACTIVE COUNT
+        total_protocols = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM protocols 
+            WHERE user_id = :user_id
+            AND is_active = true
+        """), {'user_id': str(user_id)}).scalar() or 0
+        
+        active_protocols = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM client_protocols cp
+            WHERE cp.user_id = :user_id
+            AND cp.status = 'active'
+        """), {'user_id': str(user_id)}).scalar() or 0
+        
+        # CONSULTATIONS (this week vs last week)
+        current_consultations = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM client_messages 
+            WHERE practitioner_id = :user_id
+            AND created_at >= :start_of_week
+        """), {
+            'user_id': str(user_id),
+            'start_of_week': start_of_week
+        }).scalar() or 0
+        
+        last_week_consultations = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM client_messages 
+            WHERE practitioner_id = :user_id
+            AND created_at >= :start_of_last_week
+            AND created_at < :start_of_week
+        """), {
+            'user_id': str(user_id),
+            'start_of_last_week': start_of_last_week,
+            'start_of_week': start_of_week
+        }).scalar() or 0
+        
+        consultations_change = current_consultations - last_week_consultations
+        
+        # SUCCESS RATE (based on compliance scores)
+        avg_compliance = conn.execute(text("""
+            SELECT AVG(compliance_score) 
+            FROM compliance_logs cl
+            JOIN client_protocols cp ON cl.client_protocol_id = cp.id
+            WHERE cp.user_id = :user_id
+            AND cl.compliance_score IS NOT NULL
+            AND cl.compliance_score > 0
+        """), {'user_id': str(user_id)}).scalar()
+        
+        success_rate = round(avg_compliance) if avg_compliance else None
+        
+    return {
+        'active_clients': current_clients,
+        'clients_change': clients_change,
+        'total_protocols': total_protocols,
+        'protocols_active_count': active_protocols,
+        'consultations': current_consultations,
+        'consultations_change': consultations_change,
+        'success_rate': success_rate
+    }
+
+
+@app.get("/api/pro/client-activity")
+async def get_client_activity(request: Request):
+    """Get recent client activity for dashboard table"""
+    user_id = get_current_user_id(request)
+    
+    with engine.connect() as conn:
+        activities = conn.execute(text("""
+            SELECT 
+                cvt.id,
+                fm.name as client_name,
+                fm.relationship as email,
+                cvt.id as client_id,
+                p.name as protocol_name,
+                cp.current_week,
+                p.duration_weeks as total_weeks,
+                cp.completion_percentage as progress,
+                GREATEST(
+                    COALESCE(cm.last_message, cvt.created_at),
+                    COALESCE(cvt.last_accessed, cvt.created_at)
+                ) as last_active
+            FROM client_view_tokens cvt
+            JOIN family_members fm ON cvt.family_member_id = fm.id
+            LEFT JOIN client_protocols cp ON cp.client_id = fm.id AND cp.status = 'active'
+            LEFT JOIN protocols p ON p.id = cp.protocol_id
+            LEFT JOIN (
+                SELECT family_member_id, MAX(created_at) as last_message
+                FROM client_messages
+                GROUP BY family_member_id
+            ) cm ON cm.family_member_id = fm.id
+            WHERE cvt.practitioner_id = :user_id
+            AND cvt.is_active = true
+            ORDER BY last_active DESC
+            LIMIT 50
+        """), {'user_id': str(user_id)}).fetchall()
+        
+        return {
+            'activities': [
+                {
+                    'id': row[0],
+                    'client_name': row[1],
+                    'email': row[2],
+                    'client_id': row[3],
+                    'protocol_name': row[4],
+                    'current_week': row[5],
+                    'total_weeks': row[6],
+                    'progress': row[7] or 0,
+                    'last_active': row[8].isoformat() if row[8] else None
+                }
+                for row in activities
+            ]
+        }
+
+@app.delete("/api/pro/client-activity/{activity_id}")
+async def delete_client_activity(request: Request, activity_id: str):
+    """Remove a client from the activity view (soft delete)"""
+    user_id = get_current_user_id(request)
+    
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            UPDATE client_view_tokens 
+            SET is_active = false,
+                last_accessed = CURRENT_TIMESTAMP
+            WHERE id = :activity_id 
+            AND practitioner_id = :user_id
+        """), {
+            'activity_id': activity_id,
+            'user_id': str(user_id)
+        })
+        conn.commit()
+        
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Activity not found")
+        
+    return {"success": True, "message": "Client removed from activity view"}
+
 # ==================== CLIENT PORTAL ENDPOINTS ====================
 
 @app.post("/api/client-view/generate")
