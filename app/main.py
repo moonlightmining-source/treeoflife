@@ -198,9 +198,18 @@ class Protocol(Base):
     description = Column(Text)
     duration_weeks = Column(Integer, default=4)
     is_active = Column(Boolean, default=True)
+    
+    # Protocol content fields
+    supplements = Column(JSON)
+    exercises = Column(JSON)
+    lifestyle_changes = Column(JSON)
+    nutrition = Column(JSON)
+    sleep = Column(JSON)
+    stress_management = Column(Text)
+    weekly_notes = Column(JSON)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
 class ProtocolPhase(Base):
     __tablename__ = "protocol_phases"
     
