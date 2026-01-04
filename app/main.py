@@ -1990,24 +1990,31 @@ async def get_protocol(request: Request, protocol_id: int):
         }
 
 @app.post("/api/protocols")
-async def create_protocol(request: Request, protocol: ProtocolCreate):
-    """Create a new protocol"""
+async def create_protocol(request: Request):
+    """Create a new protocol with all content fields"""
     user_id = get_current_user_id(request)
+    data = await request.json()
     
     with get_db_context() as db:
         new_protocol = Protocol(
             user_id=user_id,
-            name=protocol.name,
-            traditions=protocol.traditions,
-            description=protocol.description,
-            duration_weeks=protocol.duration_weeks
+            name=data.get('name', 'Untitled Protocol'),
+            traditions=data.get('traditions'),
+            description=data.get('description'),
+            duration_weeks=data.get('duration_weeks', 4),
+            supplements=data.get('supplements'),
+            exercises=data.get('exercises'),
+            lifestyle_changes=data.get('lifestyle_changes'),
+            nutrition=data.get('nutrition'),
+            sleep=data.get('sleep'),
+            stress_management=data.get('stress_management'),
+            weekly_notes=data.get('weekly_notes')
         )
         db.add(new_protocol)
         db.commit()
         db.refresh(new_protocol)
         
         return {"id": new_protocol.id, "name": new_protocol.name}
-
 @app.put("/api/protocols/{protocol_id}")
 async def update_protocol(request: Request, protocol_id: int):
     """Update a protocol with all content fields"""
