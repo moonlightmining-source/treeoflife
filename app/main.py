@@ -2009,9 +2009,10 @@ async def create_protocol(request: Request, protocol: ProtocolCreate):
         return {"id": new_protocol.id, "name": new_protocol.name}
 
 @app.put("/api/protocols/{protocol_id}")
-async def update_protocol(request: Request, protocol_id: int, protocol: ProtocolCreate):
-    """Update a protocol"""
+async def update_protocol(request: Request, protocol_id: int):
+    """Update a protocol with all content fields"""
     user_id = get_current_user_id(request)
+    data = await request.json()
     
     with get_db_context() as db:
         existing = db.query(Protocol).filter(
@@ -2022,10 +2023,32 @@ async def update_protocol(request: Request, protocol_id: int, protocol: Protocol
         if not existing:
             raise HTTPException(status_code=404, detail="Protocol not found")
         
-        existing.name = protocol.name
-        existing.traditions = protocol.traditions
-        existing.description = protocol.description
-        existing.duration_weeks = protocol.duration_weeks
+        # Update basic fields
+        if 'name' in data:
+            existing.name = data['name']
+        if 'traditions' in data:
+            existing.traditions = data['traditions']
+        if 'description' in data:
+            existing.description = data['description']
+        if 'duration_weeks' in data:
+            existing.duration_weeks = data['duration_weeks']
+        
+        # Update protocol content fields
+        if 'supplements' in data:
+            existing.supplements = data['supplements']
+        if 'exercises' in data:
+            existing.exercises = data['exercises']
+        if 'lifestyle_changes' in data:
+            existing.lifestyle_changes = data['lifestyle_changes']
+        if 'nutrition' in data:
+            existing.nutrition = data['nutrition']
+        if 'sleep' in data:
+            existing.sleep = data['sleep']
+        if 'stress_management' in data:
+            existing.stress_management = data['stress_management']
+        if 'weekly_notes' in data:
+            existing.weekly_notes = data['weekly_notes']
+        
         existing.updated_at = datetime.utcnow()
         
         db.commit()
