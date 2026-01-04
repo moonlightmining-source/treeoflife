@@ -1955,28 +1955,7 @@ async def get_protocols(request: Request):
             "description": p.description,
             "duration_weeks": p.duration_weeks,
             "created_at": p.created_at.isoformat()
-        } for p in protocols]}
-@app.get("/api/protocols")
-async def get_protocols(request: Request):
-    """Get all protocols for current user"""
-    user_id = get_current_user_id(request)
-    
-    with get_db_context() as db:
-        protocols = db.query(Protocol).filter(
-            Protocol.user_id == user_id,
-            Protocol.is_active == True
-        ).all()
-        
-        return {"protocols": [{
-            "id": p.id,
-            "name": p.name,
-            "traditions": p.traditions,
-            "description": p.description,
-            "duration_weeks": p.duration_weeks,
-            "created_at": p.created_at.isoformat()
-        } for p in protocols]}
-
-# ← ADD NEW ENDPOINT HERE ↓
+       } for p in protocols]}
 
 @app.get("/api/protocols/{protocol_id}")
 async def get_protocol(request: Request, protocol_id: int):
@@ -2010,10 +1989,6 @@ async def get_protocol(request: Request, protocol_id: int):
             }
         }
 
-# ← NEW ENDPOINT ENDS HERE ↑
-
-@app.post("/api/protocols")
-async def create_protocol(request: Request, protocol: ProtocolCreate):
 @app.post("/api/protocols")
 async def create_protocol(request: Request, protocol: ProtocolCreate):
     """Create a new protocol"""
