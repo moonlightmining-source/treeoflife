@@ -1956,7 +1956,64 @@ async def get_protocols(request: Request):
             "duration_weeks": p.duration_weeks,
             "created_at": p.created_at.isoformat()
         } for p in protocols]}
+@app.get("/api/protocols")
+async def get_protocols(request: Request):
+    """Get all protocols for current user"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        protocols = db.query(Protocol).filter(
+            Protocol.user_id == user_id,
+            Protocol.is_active == True
+        ).all()
+        
+        return {"protocols": [{
+            "id": p.id,
+            "name": p.name,
+            "traditions": p.traditions,
+            "description": p.description,
+            "duration_weeks": p.duration_weeks,
+            "created_at": p.created_at.isoformat()
+        } for p in protocols]}
 
+# ← ADD NEW ENDPOINT HERE ↓
+
+@app.get("/api/protocols/{protocol_id}")
+async def get_protocol(request: Request, protocol_id: int):
+    """Get a single protocol by ID"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        protocol = db.query(Protocol).filter(
+            Protocol.id == protocol_id,
+            Protocol.user_id == user_id
+        ).first()
+        
+        if not protocol:
+            raise HTTPException(status_code=404, detail="Protocol not found")
+        
+        return {
+            "protocol": {
+                "id": protocol.id,
+                "name": protocol.name,
+                "traditions": protocol.traditions,
+                "description": protocol.description,
+                "duration_weeks": protocol.duration_weeks,
+                "supplements": protocol.supplements,
+                "exercises": protocol.exercises,
+                "lifestyle_changes": protocol.lifestyle_changes,
+                "nutrition": protocol.nutrition,
+                "sleep": protocol.sleep,
+                "stress_management": protocol.stress_management,
+                "weekly_notes": protocol.weekly_notes,
+                "created_at": protocol.created_at.isoformat()
+            }
+        }
+
+# ← NEW ENDPOINT ENDS HERE ↑
+
+@app.post("/api/protocols")
+async def create_protocol(request: Request, protocol: ProtocolCreate):
 @app.post("/api/protocols")
 async def create_protocol(request: Request, protocol: ProtocolCreate):
     """Create a new protocol"""
