@@ -1939,7 +1939,7 @@ class ComplianceCreate(BaseModel):
 
 @app.get("/api/protocols")
 async def get_protocols(request: Request):
-    """Get all protocols for current user"""
+    """Get all protocols for current user with full content"""
     user_id = get_current_user_id(request)
     
     with get_db_context() as db:
@@ -1954,9 +1954,16 @@ async def get_protocols(request: Request):
             "traditions": p.traditions,
             "description": p.description,
             "duration_weeks": p.duration_weeks,
+            "supplements": p.supplements,
+            "exercises": p.exercises,
+            "lifestyle_changes": p.lifestyle_changes,
+            "nutrition": p.nutrition,
+            "sleep": p.sleep,
+            "stress_management": p.stress_management,
+            "weekly_notes": p.weekly_notes,
             "created_at": p.created_at.isoformat()
-       } for p in protocols]}
-
+        } for p in protocols]}
+        
 @app.get("/api/protocols/{protocol_id}")
 async def get_protocol(request: Request, protocol_id: int):
     """Get a single protocol by ID"""
