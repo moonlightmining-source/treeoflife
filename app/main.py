@@ -1022,6 +1022,32 @@ async def delete_family_member(request: Request, member_id: int):
         if not member:
             raise HTTPException(status_code=404, detail="Member not found")
         
+        # Delete related records first (in correct order)
+        
+        # 1. Delete compliance logs for this client's protocols
+        db.execute(text("""
+            DELETE FROM compliance_logs
+            WHERE client_protocol_id IN (
+                SELECT id FROM client_protocols WHERE client_id = :member_id
+            )
+        """), {'member_id': member_id})
+        
+        # 2. Delete client protocol assignments
+        db.execute(text("""
+            DELETE FROM client_protocols WHERE client_id = :member_id
+        """), {'member_id': member_id})
+        
+        # 3. Delete client view tokens (has CASCADE but being explicit)
+        db.execute(text("""
+            DELETE FROM client_view_tokens WHERE family_member_id = :member_id
+        """), {'member_id': member_id})
+        
+        # 4. Delete client messages (has CASCADE but being explicit)
+        db.execute(text("""
+            DELETE FROM client_messages WHERE family_member_id = :member_id
+        """), {'member_id': member_id})
+        
+        # 5. Finally delete the family member
         db.delete(member)
         db.commit()
         
