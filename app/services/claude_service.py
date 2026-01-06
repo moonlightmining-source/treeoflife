@@ -70,7 +70,9 @@ Please seek immediate medical attention."""
         user_message: str,
         user_profile: Dict[str, Any],
         conversation_history: List[Dict[str, str]],
-        max_tokens: int = 2000
+        max_tokens: int = 2000,
+        member_id: Optional[int] = None,
+        member_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate AI response using Claude
@@ -96,11 +98,15 @@ Please seek immediate medical attention."""
                 }
             
             # Build system prompt
+            member_context = ""
+            if member_id and member_name:
+                member_context = f"\n\n**IMPORTANT CONTEXT**: You are currently chatting with {member_name}, a family member. Address them directly and personalize all advice for {member_name}, not the account owner."
+            
             system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
                 user_profile=self._format_user_profile(user_profile),
                 conversation_history=self._format_conversation(conversation_history),
                 rag_context=""  # TODO: Integrate RAG when available
-            )
+            ) + member_context
             
             # Build messages for Claude
             messages = conversation_history + [
