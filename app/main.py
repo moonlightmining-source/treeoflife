@@ -2432,20 +2432,21 @@ async def get_client_activity(request: Request):
     with engine.connect() as conn:
         activities = conn.execute(text("""
             SELECT 
-                cvt.id,
+                fm.id,
                 fm.name as client_name,
                 fm.relationship as email,
-                cvt.id as client_id,
+                fm.id as client_id,
                 p.name as protocol_name,
                 cp.current_week,
                 p.duration_weeks as total_weeks,
                 cp.completion_percentage as progress,
                 GREATEST(
-                    COALESCE(cm.last_message, cvt.created_at),
-                    COALESCE(cvt.last_accessed, cvt.created_at)
+                    COALESCE(cm.last_message, cp.assigned_at),
+                    COALESCE(cvt.last_accessed, cp.assigned_at),
+                    COALESCE(cp.assigned_at, fm.created_at)
                 ) as last_active
-            FROM client_view_tokens cvt
-            JOIN family_members fm ON cvt.family_member_id = fm.id
+            FROM family_members fm
+            LEFT JOIN client_view_tokens cvt ON cvt.family_member_id = fm.id AND cvt.is_active = true
             LEFT JOIN client_protocols cp ON cp.client_id = fm.id AND cp.status = 'active'
             LEFT JOIN protocols p ON p.id = cp.protocol_id
             LEFT JOIN (
@@ -2453,8 +2454,7 @@ async def get_client_activity(request: Request):
                 FROM client_messages
                 GROUP BY family_member_id
             ) cm ON cm.family_member_id = fm.id
-            WHERE cvt.practitioner_id = :user_id
-            AND cvt.is_active = true
+            WHERE fm.user_id = :user_id
             ORDER BY last_active DESC
             LIMIT 50
         """), {'user_id': str(user_id)}).fetchall()
@@ -2464,11 +2464,11 @@ async def get_client_activity(request: Request):
                 {
                     'id': row[0],
                     'client_name': row[1],
-                    'email': row[2],
+                    'email': row[2] or 'N/A',
                     'client_id': row[3],
-                    'protocol_name': row[4],
-                    'current_week': row[5],
-                    'total_weeks': row[6],
+                    'protocol_name': row[4] or 'No protocol assigned',
+                    'current_week': row[5] or 0,
+                    'total_weeks': row[6] or 0,
                     'progress': row[7] or 0,
                     'last_active': row[8].isoformat() if row[8] else None
                 }
