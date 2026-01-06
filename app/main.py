@@ -2477,21 +2477,50 @@ async def get_client_activity(request: Request):
         }
 
 @app.delete("/api/pro/client-activity/{activity_id}")
-async def delete_client_activity(request: Request, activity_id: str):
-    """Remove a client from the activity view (soft delete)"""
+async def delete_client_activity(request: Request, activity_id: int):
+    """Remove a client from the activity view (delete family member)"""
     user_id = get_current_user_id(request)
     
-    with engine.connect() as conn:
-        result = conn.execute(text("""
-            UPDATE client_view_tokens 
-            SET is_active = false,
-                last_accessed = CURRENT_TIMESTAMP
-            WHERE id = :activity_id 
-            AND practitioner_id = :user_id
-        """), {
-            'activity_id': activity_id,
-            'user_id': str(user_id)
-        })
+    with get_db_context() as db:
+        # Verify the family member belongs to this user
+        member = db.query(FamilyMember).filter(
+            FamilyMember.id == activity_id,
+            FamilyMember.user_id == user_id
+        ).first()
+        
+        if not member:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Delete related records first (in correct order)
+        
+        # 1. Delete compliance logs for this client's protocols
+        db.execute(text("""
+            DELETE FROM compliance_logs
+            WHERE client_protocol_id IN (
+                SELECT id FROM client_protocols WHERE client_id = :member_id
+            )
+        """), {'member_id': activity_id})
+        
+        # 2. Delete client protocol assignments
+        db.execute(text("""
+            DELETE FROM client_protocols WHERE client_id = :member_id
+        """), {'member_id': activity_id})
+        
+        # 3. Delete client view tokens
+        db.execute(text("""
+            DELETE FROM client_view_tokens WHERE family_member_id = :member_id
+        """), {'member_id': activity_id})
+        
+        # 4. Delete client messages
+        db.execute(text("""
+            DELETE FROM client_messages WHERE family_member_id = :member_id
+        """), {'member_id': activity_id})
+        
+        # 5. Finally delete the family member
+        db.delete(member)
+        db.commit()
+        
+    return {"success": True, "message": "Client deleted successfully"}
         conn.commit()
         
         if result.rowcount == 0:
