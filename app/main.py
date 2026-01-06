@@ -2511,7 +2511,7 @@ async def delete_client_activity(request: Request, activity_id: int):
             DELETE FROM client_view_tokens WHERE family_member_id = :member_id
         """), {'member_id': activity_id})
         
-        # 4. Delete client messages
+     # 4. Delete client messages
         db.execute(text("""
             DELETE FROM client_messages WHERE family_member_id = :member_id
         """), {'member_id': activity_id})
@@ -2521,13 +2521,6 @@ async def delete_client_activity(request: Request, activity_id: int):
         db.commit()
         
     return {"success": True, "message": "Client deleted successfully"}
-        conn.commit()
-        
-        if result.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Activity not found")
-        
-    return {"success": True, "message": "Client removed from activity view"}
-
 # ==================== CLIENT PORTAL ENDPOINTS ====================
 
 @app.post("/api/client-view/generate")
