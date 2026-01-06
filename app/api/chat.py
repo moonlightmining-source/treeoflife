@@ -15,6 +15,12 @@ from app.schemas.chat import (
     MessageCreate,
     MessageResponse
 )
+from pydantic import BaseModel
+
+class MessageCreateWithMember(BaseModel):
+    content: str
+    member_id: Optional[int] = None
+    member_name: Optional[str] = None
 from app.services.claude_service import claude_service
 
 
@@ -48,10 +54,12 @@ async def create_conversation(
     
     # Get AI response
     try:
-        response = await claude_service.generate_response(
+       response = await claude_service.generate_response(
             user_message=data.initial_message,
             user_profile={},  # TODO: Get from health profile
-            conversation_history=[]
+            conversation_history=[],
+            member_id=getattr(data, 'member_id', None),
+            member_name=getattr(data, 'member_name', None)
         )
         
         # Create AI message
@@ -142,7 +150,7 @@ async def get_conversation(
 @router.post("/chat/conversations/{conversation_id}/messages", response_model=MessageResponse)
 async def send_message(
     conversation_id: str,
-    data: MessageCreate,
+    data: MessageCreateWithMember,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -184,7 +192,9 @@ async def send_message(
         response = await claude_service.generate_response(
             user_message=data.content,
             user_profile={},  # TODO: Get from health profile
-            conversation_history=conversation_history
+            conversation_history=conversation_history,
+            member_id=data.member_id,
+            member_name=data.member_name
         )
         
         # Create AI message
