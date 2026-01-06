@@ -2339,28 +2339,23 @@ async def get_pro_statistics(request: Request):
         start_of_week = now - timedelta(days=now.weekday())
         start_of_last_week = start_of_week - timedelta(days=7)
         
-        # ACTIVE CLIENTS (this month vs last month)
+        # TOTAL CLIENTS (from family_members table)
         current_clients = conn.execute(text("""
-            SELECT COUNT(DISTINCT cvt.id) 
-            FROM client_view_tokens cvt
-            WHERE cvt.practitioner_id = :user_id 
-            AND cvt.is_active = true
-            AND cvt.created_at >= :start_of_month
+            SELECT COUNT(*) 
+            FROM family_members
+            WHERE user_id = :user_id
         """), {
-            'user_id': str(user_id),
-            'start_of_month': start_of_month
+            'user_id': str(user_id)
         }).scalar() or 0
         
+        # Last month's client count
         last_month_clients = conn.execute(text("""
-            SELECT COUNT(DISTINCT cvt.id) 
-            FROM client_view_tokens cvt
-            WHERE cvt.practitioner_id = :user_id 
-            AND cvt.is_active = true
-            AND cvt.created_at >= :start_of_last_month
-            AND cvt.created_at < :start_of_month
+            SELECT COUNT(*) 
+            FROM family_members
+            WHERE user_id = :user_id
+            AND created_at < :start_of_month
         """), {
             'user_id': str(user_id),
-            'start_of_last_month': start_of_last_month,
             'start_of_month': start_of_month
         }).scalar() or 0
         
