@@ -73,13 +73,20 @@ async def create_conversation(
     db.add(user_message)
     
     # Get AI response
-        try:
-            # ✅ PROVE WE'RE CALLING CLAUDE
-            with open("/tmp/chat_debug.txt", "a") as f:
-                f.write(f"\n=== CALLING CLAUDE ===\n")
-                f.write(f"member_id: {data.member_id}\n")
-                f.write(f"member_name: {data.member_name}\n")
+    try:
+        # ✅ PROVE WE'RE CALLING CLAUDE
+        with open("/tmp/chat_debug.txt", "a") as f:
+            f.write(f"\n=== CALLING CLAUDE ===\n")
+            f.write(f"member_id: {data.member_id}\n")
+            f.write(f"member_name: {data.member_name}\n")
+        
         response = await claude_service.generate_response(
+            user_message=data.initial_message,
+            user_profile={},  # TODO: Get from health profile
+            conversation_history=[],
+            member_id=data.member_id,
+            member_name=data.member_name
+        )
             user_message=data.initial_message,
             user_profile={},  # TODO: Get from health profile
             conversation_history=[],
