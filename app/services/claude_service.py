@@ -100,22 +100,20 @@ Please seek immediate medical attention."""
                     "sources": []
                 }
             
-            # Build member context
+           # Build member context
             member_context = ""
             if member_id and member_name:
                 member_context = f"\n\n**IMPORTANT CONTEXT**: You are currently chatting with {member_name}, a family member. Address them directly and personalize all advice for {member_name}, not the account owner."
-                sys.stderr.write("=" * 60 + "\n")
-                sys.stderr.write("👤 MEMBER CONTEXT ACTIVE!\n")
-                sys.stderr.write(f"👤 member_id: {member_id}\n")
-                sys.stderr.write(f"👤 member_name: {member_name}\n")
-                sys.stderr.write(f"👤 member_context: {member_context}\n")
-                sys.stderr.write("=" * 60 + "\n")
-                sys.stderr.flush()
+                logger.warning("=" * 60)
+                logger.warning(f"👤 MEMBER CONTEXT ACTIVE!")
+                logger.warning(f"👤 member_id: {member_id}")
+                logger.warning(f"👤 member_name: {member_name}")
+                logger.warning(f"👤 member_context: {member_context}")
+                logger.warning("=" * 60)
             else:
-                sys.stderr.write("⚠️ NO MEMBER CONTEXT\n")
-                sys.stderr.write(f"⚠️ member_id: {member_id}\n")
-                sys.stderr.write(f"⚠️ member_name: {member_name}\n")
-                sys.stderr.flush()
+                logger.warning("⚠️ NO MEMBER CONTEXT")
+                logger.warning(f"⚠️ member_id: {member_id}")
+                logger.warning(f"⚠️ member_name: {member_name}")
             
             # Build system prompt
             system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
