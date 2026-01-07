@@ -100,7 +100,19 @@ Please seek immediate medical attention."""
                     "sources": []
                 }
             
-           # Build member context
+           # ✅ DEBUG: Write to file
+            try:
+                with open("/tmp/debug.txt", "a") as f:
+                    f.write(f"\n{'='*60}\n")
+                    f.write(f"GENERATE_RESPONSE CALLED\n")
+                    f.write(f"member_id: {member_id}\n")
+                    f.write(f"member_name: {member_name}\n")
+                    f.write(f"user_message: {user_message[:100]}\n")
+                    f.write(f"{'='*60}\n")
+            except:
+                pass
+            
+            # Build member context
             member_context = ""
             if member_id and member_name:
                 member_context = f"\n\n**IMPORTANT CONTEXT**: You are currently chatting with {member_name}, a family member. Address them directly and personalize all advice for {member_name}, not the account owner."
