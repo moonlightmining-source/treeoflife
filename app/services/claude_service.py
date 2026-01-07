@@ -98,20 +98,19 @@ Please seek immediate medical attention."""
                 }
             
             # Build system prompt
-            member_context = ""
+          member_context = ""
             if member_id and member_name:
                 member_context = f"\n\n**IMPORTANT CONTEXT**: You are currently chatting with {member_name}, a family member. Address them directly and personalize all advice for {member_name}, not the account owner."
-                print("=" * 60)
-                print(f"👤 MEMBER CONTEXT ACTIVE!")
-                print(f"👤 member_id: {member_id}")
-                print(f"👤 member_name: {member_name}")
-                print(f"👤 member_context: {member_context}")
-                print("=" * 60)
+                print("=" * 60, flush=True)
+                print(f"👤 MEMBER CONTEXT ACTIVE!", flush=True)
+                print(f"👤 member_id: {member_id}", flush=True)
+                print(f"👤 member_name: {member_name}", flush=True)
+                print(f"👤 member_context: {member_context}", flush=True)
+                print("=" * 60, flush=True)
             else:
-                print("⚠️ NO MEMBER CONTEXT - member_id:", member_id, "member_name:", member_name)
-```
-            
-            system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+                print("⚠️ NO MEMBER CONTEXT", flush=True)
+                print(f"⚠️ member_id: {member_id}", flush=True)
+                print(f"⚠️ member_name: {member_name}", flush=True)
                 user_profile=self._format_user_profile(user_profile),
                 conversation_history=self._format_conversation(conversation_history),
                 rag_context=""  # TODO: Integrate RAG when available
@@ -122,7 +121,11 @@ Please seek immediate medical attention."""
                 {"role": "user", "content": user_message}
             ]
             
+           
             # Call Claude API
+            print(f"🤖 System prompt length: {len(system_prompt)} chars", flush=True)
+            print(f"🤖 Last 300 chars: ...{system_prompt[-300:]}", flush=True)
+            
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=max_tokens,
