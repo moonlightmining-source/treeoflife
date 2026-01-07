@@ -36,6 +36,18 @@ async def create_conversation(
     """
     Create a new conversation with initial message
     """
+    # ✅ DEBUG LOGGING
+    import json
+    print("=" * 60)
+    print("🔍 RECEIVED CONVERSATION CREATE REQUEST")
+    print(f"📦 Request data type: {type(data)}")
+    print(f"📦 Request data: {data}")
+    print(f"📦 Has member_id: {hasattr(data, 'member_id')}")
+    print(f"📦 Has member_name: {hasattr(data, 'member_name')}")
+    if hasattr(data, 'member_id'):
+        print(f"👤 member_id: {data.member_id}")
+        print(f"👤 member_name: {data.member_name}")
+    print("=" * 60)
      member_id = getattr(data, 'member_id', None)
     member_name = getattr(data, 'member_name', None)
     print(f"👤 Backend received: member_id={member_id}, member_name={member_name}")
