@@ -100,7 +100,7 @@ Please seek immediate medical attention."""
                     "sources": []
                 }
             
-           # ✅ DEBUG: Write to file
+          # ✅ DEBUG: Write to file
             try:
                 with open("/tmp/debug.txt", "a") as f:
                     f.write(f"\n{'='*60}\n")
