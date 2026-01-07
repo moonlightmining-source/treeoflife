@@ -101,6 +101,15 @@ Please seek immediate medical attention."""
             member_context = ""
             if member_id and member_name:
                 member_context = f"\n\n**IMPORTANT CONTEXT**: You are currently chatting with {member_name}, a family member. Address them directly and personalize all advice for {member_name}, not the account owner."
+                print("=" * 60)
+                print(f"👤 MEMBER CONTEXT ACTIVE!")
+                print(f"👤 member_id: {member_id}")
+                print(f"👤 member_name: {member_name}")
+                print(f"👤 member_context: {member_context}")
+                print("=" * 60)
+            else:
+                print("⚠️ NO MEMBER CONTEXT - member_id:", member_id, "member_name:", member_name)
+```
             
             system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
                 user_profile=self._format_user_profile(user_profile),
