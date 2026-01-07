@@ -97,11 +97,11 @@ async def create_conversation(
         db.commit()
         db.refresh(conversation)
         
-        return ConversationResponse(
+       return ConversationResponse(
             success=True,
             data={
                 "conversation": conversation.to_dict(),
-                "message": ai_message.to_dict()
+                "messages": [user_message.to_dict(), ai_message.to_dict()]  # ✅ Return BOTH messages as array
             }
         )
     
