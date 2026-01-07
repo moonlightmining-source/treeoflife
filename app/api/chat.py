@@ -36,6 +36,9 @@ async def create_conversation(
     """
     Create a new conversation with initial message
     """
+     member_id = getattr(data, 'member_id', None)
+    member_name = getattr(data, 'member_name', None)
+    print(f"👤 Backend received: member_id={member_id}, member_name={member_name}")
     # Create conversation
     conversation = Conversation(
         user_id=current_user.id,
