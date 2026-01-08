@@ -1,7 +1,6 @@
 """
 Chat API Routes
 """
-import sys
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -23,7 +22,7 @@ from app.services.claude_service import claude_service
 router = APIRouter()
 
 
-# ✅ NEW: Schema that accepts member context
+# Schema that accepts member context
 class ConversationCreateWithMember(BaseModel):
     initial_message: str
     title: Optional[str] = None
@@ -46,16 +45,6 @@ async def create_conversation(
     """
     Create a new conversation with initial message
     """
-    # ✅ DEBUG LOGGING
-    sys.stderr.write("=" * 60 + "\n")
-    sys.stderr.write("🔍 RECEIVED CONVERSATION CREATE REQUEST\n")
-    sys.stderr.write(f"📦 Request data type: {type(data)}\n")
-    sys.stderr.write(f"📦 Request data: {data}\n")
-    sys.stderr.write(f"👤 member_id: {data.member_id}\n")
-    sys.stderr.write(f"👤 member_name: {data.member_name}\n")
-    sys.stderr.write("=" * 60 + "\n")
-    sys.stderr.flush()
-    
     # Create conversation
     conversation = Conversation(
         user_id=current_user.id,
@@ -74,12 +63,6 @@ async def create_conversation(
     
     # Get AI response
     try:
-        # ✅ PROVE WE'RE CALLING CLAUDE
-        with open("/tmp/chat_debug.txt", "a") as f:
-            f.write(f"\n=== CALLING CLAUDE ===\n")
-            f.write(f"member_id: {data.member_id}\n")
-            f.write(f"member_name: {data.member_name}\n")
-        
         response = await claude_service.generate_response(
             user_message=data.initial_message,
             user_profile={},
