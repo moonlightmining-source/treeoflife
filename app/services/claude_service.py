@@ -1,7 +1,6 @@
 """
 Claude AI Service - Core AI Integration
 """
-import sys
 import logging
 from typing import Dict, List, Any, Optional
 from anthropic import Anthropic
@@ -57,10 +56,10 @@ class ClaudeService:
 This sounds like a medical emergency. The following concerning symptoms were detected: {', '.join(keywords)}
 
 IMMEDIATE ACTION REQUIRED:
-• Call 911 (or your local emergency number) immediately
-• Do NOT wait or try to treat this yourself
-• Go to the nearest emergency room
-• If alone, call someone to be with you
+- Call 911 (or your local emergency number) immediately
+- Do NOT wait or try to treat this yourself
+- Go to the nearest emergency room
+- If alone, call someone to be with you
 
 This app is for educational purposes only and cannot help with emergencies.
 
@@ -100,32 +99,10 @@ Please seek immediate medical attention."""
                     "sources": []
                 }
             
-          # ✅ DEBUG: Write to file
-            try:
-                with open("/tmp/debug.txt", "a") as f:
-                    f.write(f"\n{'='*60}\n")
-                    f.write(f"GENERATE_RESPONSE CALLED\n")
-                    f.write(f"member_id: {member_id}\n")
-                    f.write(f"member_name: {member_name}\n")
-                    f.write(f"user_message: {user_message[:100]}\n")
-                    f.write(f"{'='*60}\n")
-            except:
-                pass
-            
             # Build member context
             member_context = ""
             if member_id and member_name:
                 member_context = f"\n\n**IMPORTANT CONTEXT**: You are currently chatting with {member_name}, a family member. Address them directly and personalize all advice for {member_name}, not the account owner."
-                logger.warning("=" * 60)
-                logger.warning(f"👤 MEMBER CONTEXT ACTIVE!")
-                logger.warning(f"👤 member_id: {member_id}")
-                logger.warning(f"👤 member_name: {member_name}")
-                logger.warning(f"👤 member_context: {member_context}")
-                logger.warning("=" * 60)
-            else:
-                logger.warning("⚠️ NO MEMBER CONTEXT")
-                logger.warning(f"⚠️ member_id: {member_id}")
-                logger.warning(f"⚠️ member_name: {member_name}")
             
             # Build system prompt
             system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
@@ -139,11 +116,7 @@ Please seek immediate medical attention."""
                 {"role": "user", "content": user_message}
             ]
             
-            # Call Claude API with debug logging
-            sys.stderr.write(f"🤖 System prompt length: {len(system_prompt)} chars\n")
-            sys.stderr.write(f"🤖 Last 300 chars: ...{system_prompt[-300:]}\n")
-            sys.stderr.flush()
-            
+            # Call Claude API
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=max_tokens,
