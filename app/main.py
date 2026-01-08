@@ -21,6 +21,7 @@ import asyncio
 from typing import Optional, List, Dict
 from app.enhanced_system_prompt import SYSTEM_PROMPT_WITH_WESTERN_MED
 from app.skill_loader import get_specialized_knowledge
+from app.api import client_messages
 
 # Near top of main.py, after imports
 MESSAGE_LIMITS = {
