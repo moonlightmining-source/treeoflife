@@ -2603,10 +2603,66 @@ async def get_client_view_data(token: str):
             }
         
         protocol = db.query(Protocol).filter(Protocol.id == assignment.protocol_id).first()
+        
+        # ✅ TRY PHASE-SPECIFIC DATA FIRST
         current_phase = db.query(ProtocolPhase).filter(
             ProtocolPhase.protocol_id == assignment.protocol_id,
             ProtocolPhase.week_number == assignment.current_week
         ).first()
+        
+        # ✅ FALL BACK TO PROTOCOL-LEVEL DATA IF NO PHASES
+        if current_phase:
+            # Use phase-specific data
+            phase_data = {
+                "title": current_phase.title,
+                "instructions": current_phase.instructions or "",
+                "herbs_supplements": current_phase.herbs_supplements or [],
+                "lifestyle_changes": current_phase.lifestyle_changes or []
+            }
+        else:
+            # ✅ USE PROTOCOL-LEVEL DATA (this was missing!)
+            herbs_supplements = []
+            lifestyle_changes = []
+            
+            # Combine supplements and exercises from protocol
+            if protocol.supplements:
+                if isinstance(protocol.supplements, list):
+                    herbs_supplements.extend(protocol.supplements)
+                elif isinstance(protocol.supplements, dict):
+                    for item in protocol.supplements.values():
+                        herbs_supplements.append(item)
+            
+            if protocol.exercises:
+                if isinstance(protocol.exercises, list):
+                    herbs_supplements.extend(protocol.exercises)
+                elif isinstance(protocol.exercises, dict):
+                    for item in protocol.exercises.values():
+                        herbs_supplements.append(item)
+            
+            # Add lifestyle changes
+            if protocol.lifestyle_changes:
+                if isinstance(protocol.lifestyle_changes, list):
+                    lifestyle_changes.extend(protocol.lifestyle_changes)
+                elif isinstance(protocol.lifestyle_changes, dict):
+                    for item in protocol.lifestyle_changes.values():
+                        lifestyle_changes.append(item)
+            
+            # Add nutrition as lifestyle change if present
+            if protocol.nutrition:
+                if isinstance(protocol.nutrition, dict):
+                    if 'foods_to_include' in protocol.nutrition:
+                        lifestyle_changes.append(f"Include: {', '.join(protocol.nutrition['foods_to_include'])}")
+                    if 'foods_to_avoid' in protocol.nutrition:
+                        lifestyle_changes.append(f"Avoid: {', '.join(protocol.nutrition['foods_to_avoid'])}")
+                    if 'dietary_approach' in protocol.nutrition:
+                        lifestyle_changes.append(f"Dietary approach: {protocol.nutrition['dietary_approach']}")
+            
+            phase_data = {
+                "title": f"Week {assignment.current_week} Protocol",
+                "instructions": protocol.description or "Follow your personalized protocol below.",
+                "herbs_supplements": herbs_supplements,
+                "lifestyle_changes": lifestyle_changes
+            }
         
         recent_compliance = db.query(ComplianceLog).filter(
             ComplianceLog.client_protocol_id == assignment.id
@@ -2620,12 +2676,7 @@ async def get_client_view_data(token: str):
                 "current_week": assignment.current_week,
                 "total_weeks": protocol.duration_weeks,
                 "completion_percentage": assignment.completion_percentage,
-                "current_phase": {
-                    "title": current_phase.title if current_phase else "No phase data",
-                    "instructions": current_phase.instructions if current_phase else "",
-                    "herbs_supplements": current_phase.herbs_supplements if current_phase else [],
-                    "lifestyle_changes": current_phase.lifestyle_changes if current_phase else []
-                },
+                "current_phase": phase_data,
                 "recent_compliance": [{
                     "week": log.week_number,
                     "score": log.compliance_score
