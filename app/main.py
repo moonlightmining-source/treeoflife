@@ -2639,23 +2639,39 @@ async def get_client_view_data(token: str):
                     for item in protocol.exercises.values():
                         herbs_supplements.append(item)
             
-            # Add lifestyle changes
+            # ✅ FIXED: Add lifestyle changes with proper string conversion
             if protocol.lifestyle_changes:
                 if isinstance(protocol.lifestyle_changes, list):
                     lifestyle_changes.extend(protocol.lifestyle_changes)
                 elif isinstance(protocol.lifestyle_changes, dict):
-                    for item in protocol.lifestyle_changes.values():
-                        lifestyle_changes.append(item)
+                    for key, value in protocol.lifestyle_changes.items():
+                        # Convert dict items to strings
+                        if isinstance(value, dict):
+                            lifestyle_changes.append(f"{key}: {json.dumps(value)}")
+                        elif isinstance(value, list):
+                            lifestyle_changes.append(f"{key}: {', '.join(str(v) for v in value)}")
+                        else:
+                            lifestyle_changes.append(f"{key}: {value}")
             
-            # Add nutrition as lifestyle change if present
+            # ✅ FIXED: Add nutrition as lifestyle change with proper formatting
             if protocol.nutrition:
                 if isinstance(protocol.nutrition, dict):
-                    if 'foods_to_include' in protocol.nutrition:
-                        lifestyle_changes.append(f"Include: {', '.join(protocol.nutrition['foods_to_include'])}")
-                    if 'foods_to_avoid' in protocol.nutrition:
-                        lifestyle_changes.append(f"Avoid: {', '.join(protocol.nutrition['foods_to_avoid'])}")
-                    if 'dietary_approach' in protocol.nutrition:
-                        lifestyle_changes.append(f"Dietary approach: {protocol.nutrition['dietary_approach']}")
+                    if 'dietary_approach' in protocol.nutrition and protocol.nutrition['dietary_approach']:
+                        lifestyle_changes.append(f"Dietary Approach: {protocol.nutrition['dietary_approach']}")
+                    
+                    if 'foods_to_include' in protocol.nutrition and protocol.nutrition['foods_to_include']:
+                        foods = protocol.nutrition['foods_to_include']
+                        if isinstance(foods, list):
+                            lifestyle_changes.append(f"Foods to Include: {', '.join(foods)}")
+                        else:
+                            lifestyle_changes.append(f"Foods to Include: {foods}")
+                    
+                    if 'foods_to_avoid' in protocol.nutrition and protocol.nutrition['foods_to_avoid']:
+                        foods = protocol.nutrition['foods_to_avoid']
+                        if isinstance(foods, list):
+                            lifestyle_changes.append(f"Foods to Avoid: {', '.join(foods)}")
+                        else:
+                            lifestyle_changes.append(f"Foods to Avoid: {foods}")
             
             phase_data = {
                 "title": f"Week {assignment.current_week} Protocol",
