@@ -18,6 +18,7 @@ import stripe
 import base64
 import json
 import asyncio
+from app.api import client_messages, client_portal  # ← ADD client_portal
 from typing import Optional, List, Dict
 from app.enhanced_system_prompt import SYSTEM_PROMPT_WITH_WESTERN_MED
 from app.skill_loader import get_specialized_knowledge
