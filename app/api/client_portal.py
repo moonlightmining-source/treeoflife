@@ -62,8 +62,12 @@ router = APIRouter()
 
 # ==================== CLIENT PORTAL ENDPOINTS ====================
 
+from fastapi import Request, Depends
+
 @router.post("/client-view/generate")
-async def generate_client_view_link(data: dict, user_id: str = None):
+async def generate_client_view_link(request: Request, data: dict):
+    from app.api.dependencies import get_current_user_id
+    practitioner_id = get_current_user_id(request)
     """Practitioner generates shareable link for client"""
     from fastapi import Request
     
