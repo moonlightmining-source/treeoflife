@@ -510,6 +510,7 @@ app.add_middleware(
 )
 # Register client inbox routes
 app.include_router(client_messages.router, prefix="/api", tags=["client-messages"])
+app.include_router(client_portal.router, prefix="/api", tags=["client-portal"])  # ← ADD THIS
 # SYSTEM_PROMPT now imported from enhanced_system_prompt.py
 # Western Medicine is always embedded; specialized skills load dynamically
 
