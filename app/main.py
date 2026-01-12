@@ -501,7 +501,8 @@ app.add_middleware(
 app.include_router(client_messages.router, prefix="/api", tags=["client-messages"])
 from app.api.client_portal import router as client_portal_router
 app.include_router(client_portal_router, prefix="/api", tags=["client-portal"])
-app.include_router(client_portal.router, prefix="/api", tags=["client-portal"])  # ← ADD THIS
+from app.api.client_portal import router as client_portal_router
+app.include_router(client_portal_router, prefix="/api", tags=["client-portal"])
 # SYSTEM_PROMPT now imported from enhanced_system_prompt.py
 # Western Medicine is always embedded; specialized skills load dynamically
 
