@@ -564,47 +564,15 @@ async def startup_event():
     print("🚀 Tree of Life AI is ready!")
 
 # ==================== HELPER FUNCTIONS ====================
+# Auth functions moved to app/auth.py to avoid circular imports
+from app.auth import (
+    hash_password,
+    verify_password,
+    create_token,
+    verify_token,
+    get_current_user_id
+)
 
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-def verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
-
-def create_token(user_id: str) -> str:
-    payload = {'user_id': str(user_id), 'exp': datetime.utcnow() + timedelta(days=7)}
-    return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
-
-def verify_token(token: str) -> str:
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-        return payload['user_id']
-    except:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-def get_current_user_id(request: Request) -> str:
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        raise HTTPException(status_code=401, detail="Missing token")
-    token = auth_header.split(' ')[1]
-    return verify_token(token)
-
-def get_current_user(request: Request) -> dict:
-    """Get current user info from database (for Depends() usage)"""
-    user_id = get_current_user_id(request)
-    
-    with get_db_context() as db:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        return {
-            "id": str(user.id),
-            "email": user.email,
-            "name": user.full_name,
-            "subscription_tier": user.subscription_tier or 'free'
-        }
-    
 def get_or_create_health_profile(db, user_id):
     profile = db.query(HealthProfile).filter(HealthProfile.user_id == user_id).first()
     if not profile:
