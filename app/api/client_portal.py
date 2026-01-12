@@ -1,15 +1,19 @@
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
-from fastapi.responses import HTMLResponse
-from sqlalchemy import text
-from typing import Optional
-import secrets
-import base64
-import jwt
-import os
-import json
+from fastapi import APIRouter, HTTPException, Depends, status
+from sqlalchemy.orm import Session
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
+from app.database import get_db
+from app.auth import get_current_user
+from app.models import (
+    User, 
+    FamilyMember, 
+    Protocol, 
+    ClientProtocol, 
+    ComplianceLog,
+    ProtocolWeek
+)
 
-from app.database import get_db_context, engine
-
+# Create router
 router = APIRouter()
 
 # ==================== INLINE AUTH HELPER ====================
