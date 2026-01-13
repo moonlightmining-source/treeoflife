@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta name="theme-color" content="#B8860B">
+    <meta name="description" content="Your personalized health protocol portal">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Health Portal">
+    
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icon-192.png">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    
+    <title>Your Health Protocol</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --amber-light: #D4A574;
+            --amber-medium: #C19A6B;
+            --bronze-deep: #B8860B;
+            --bronze-light: #A0826D;
+            --peach-gold: #EEC591;
+            --pure-black: #000;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1410 0%, #2d1f1a 50%, #1a1410 100%);
+            background-image: url('/static/Background.png');
+            background-position: center center;
+            background-attachment: fixed;
+            background-size: cover;
+            color: var(--amber-light);
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.2);
+            z-index: -1;
+        }
+        
+        .install-banner {
+            position: fixed;
+            bottom: -200px;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border-top: 2px solid var(--bronze-deep);
+            color: var(--amber-light);
+            padding: 20px;
+            box-shadow: 0 -4px 20px rgba(184, 134, 11, 0.3);
+            transition: bottom 0.3s ease;
+            z-index: 2000;
+        }
+        
+        .install-banner.show {
+            bottom: 0;
+        }
+        
+        .install-content {
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .install-icon {
+            font-size: 40px;
+        }
+        
+        .install-text {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .install-text h3 {
+            font-size: 16px;
+            margin-bottom: 5px;
+            color: var(--peach-gold);
+        }
+        
+        .install-text p {
+            font-size: 13px;
+            color: var(--amber-medium);
+        }
+        
+        .install-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .install-btn {
+            padding: 10px 20px;
+            border: 2px solid var(--bronze-deep);
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+            transition: all 0.3s;
+        }
+        
+        .install-btn.primary {
+            background: var(--bronze-deep);
+            color: var(--pure-black);
+        }
+        
+        .install-btn.primary:hover {
+            background: var(--amber-light);
+            transform: translateY(-2px);
+        }
+        
+        .install-btn.secondary {
+            background: transparent;
+            color: var(--amber-light);
+        }
+        
+        .install-btn.secondary:hover {
+            background: rgba(212, 165, 116, 0.1);
+            border-color: var(--amber-light);
+        }
+        
+        .install-btn.download {
+            background: var(--bronze-deep);
+            color: var(--pure-black);
+        }
+        
+        .install-btn.download:hover {
+            background: var(--peach-gold);
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--bronze-deep);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(184, 134, 11, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, rgba(184, 134, 11, 0.3), rgba(160, 130, 109, 0.3));
+            border-bottom: 2px solid var(--bronze-deep);
+            color: var(--amber-light);
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            width: 350px;              
+            height: 350px;             
+            background: url('/static/Logoframe.png') center center;
+            background-size: contain;
+            background-repeat: no-repeat;
+            border: none;              
+            border-radius: 0;          
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: visible;         
+            position: relative;
+        }
+
+        .logo img {
+            width: 60%;                
+            height: 60%;               
+            object-fit: contain;
+            position: relative;
+            z-index: 2;
+        }
+
+        .logo::before {
+            content: '';
+            display: none;
+        }
+        
+        .practitioner-name {
+            font-size: 14px;
+            color: var(--bronze-light);
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--peach-gold);
+        }
+        
+        .protocol-name {
+            font-size: 18px;
+            color: var(--amber-light);
+            margin-bottom: 20px;
+        }
+        
+        .progress-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--bronze-deep);
+            border-radius: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--bronze-deep);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--bronze-deep), var(--amber-light));
+            transition: width 0.3s ease;
+        }
+        
+        .week-info {
+            text-align: center;
+            font-size: 14px;
+            color: var(--amber-medium);
+        }
+        
+        .phase-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 20px 0 10px;
+            color: var(--amber-light);
+        }
+        
+        .instructions {
+            color: var(--amber-medium);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .checklist {
+            list-style: none;
+        }
+        
+        .checklist li {
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--bronze-deep);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--amber-light);
+        }
+        
+        .checklist li:hover {
+            background: rgba(184, 134, 11, 0.2);
+            transform: translateX(5px);
+            border-color: var(--amber-light);
+        }
+        
+        .checklist li.completed {
+            background: rgba(34, 197, 94, 0.2);
+            text-decoration: line-through;
+            color: var(--bronze-light);
+            border-color: #22c55e;
+        }
+        
+        .checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--bronze-deep);
+            border-radius: 6px;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .completed .checkbox {
+            background: #22c55e;
+            border-color: #22c55e;
+        }
+        
+        .completed .checkbox::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+        }
+        
+        .action-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--bronze-deep), var(--amber-medium));
+            color: var(--pure-black);
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(184, 134, 11, 0.4);
+        }
+        
+        .action-btn.secondary {
+            background: transparent;
+            border: 2px solid var(--bronze-deep);
+            color: var(--amber-light);
+        }
+        
+        .action-btn.secondary:hover {
+            background: rgba(184, 134, 11, 0.2);
+            border-color: var(--amber-light);
+        }
+        
+        .question-btn {
+            width: 100%;
+            padding: 15px;
+            background: transparent;
+            border: 2px solid var(--bronze-deep);
+            color: var(--amber-light);
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .question-btn:hover {
+            background: rgba(184, 134, 11, 0.2);
+            border-color: var(--amber-light);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--bronze-deep);
+            border-radius: 15px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(184, 134, 11, 0.3);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--peach-gold);
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: var(--bronze-light);
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .close-btn:hover {
+            color: var(--amber-light);
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--bronze-deep);
+            border-radius: 8px;
+            color: var(--amber-light);
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: var(--amber-light);
+        }
+        
+        textarea::placeholder {
+            color: var(--bronze-light);
+        }
+        
+        .image-upload {
+            margin: 15px 0;
+        }
+        
+        .image-upload-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px dashed var(--bronze-deep);
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--amber-light);
+            transition: all 0.2s ease;
+        }
+        
+        .image-upload-btn:hover {
+            background: rgba(184, 134, 11, 0.2);
+            border-color: var(--amber-light);
+        }
+        
+        .image-preview {
+            margin-top: 15px;
+            position: relative;
+        }
+        
+        .image-preview img {
+            width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 2px solid var(--bronze-deep);
+        }
+        
+        .remove-image {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .send-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--bronze-deep), var(--amber-medium));
+            color: var(--pure-black);
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(184, 134, 11, 0.4);
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .replies-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid var(--bronze-deep);
+        }
+        
+        .reply-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--bronze-deep);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .reply-question {
+            font-size: 14px;
+            color: var(--amber-medium);
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+        
+        .reply-answer {
+            font-size: 14px;
+            color: var(--amber-light);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 3px solid var(--bronze-deep);
+        }
+        
+        .reply-date {
+            font-size: 12px;
+            color: var(--bronze-light);
+            margin-top: 8px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--bronze-light);
+            font-size: 12px;
+            border-top: 2px solid rgba(184, 134, 11, 0.3);
+        }
+
+        .print-btn {
+            width: 100%;
+            padding: 15px;
+            background: transparent;
+            border: 2px solid var(--bronze-deep);
+            color: var(--amber-light);
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .print-btn:hover {
+            background: rgba(184, 134, 11, 0.2);
+            border-color: var(--amber-light);
+        }
+
+        .section-header {
+            margin: 25px 0 10px;
+            color: var(--amber-light);
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .empty-section {
+            padding: 15px;
+            text-align: center;
+            color: var(--bronze-light);
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            body::before {
+                display: none;
+            }
+            .container {
+                box-shadow: none;
+                border: 1px solid #000;
+            }
+            .action-btn, .question-btn, .print-btn, .install-banner {
+                display: none !important;
+            }
+            .checklist li {
+                break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="install-banner" id="install-banner">
+        <div class="install-content" id="install-content">
+            <div class="install-icon">📱</div>
+            <div class="install-text">
+                <h3>Add to Home Screen</h3>
+                <p>Quick access to your health portal</p>
+            </div>
+            <div class="install-buttons" id="install-buttons">
+                <button class="install-btn primary" id="install-btn" onclick="installApp()">Install</button>
+                <button class="install-btn secondary" onclick="dismissInstall()">Later</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <img src="/static/Tree_of_life_logo_800x800.png" alt="Logo">
+            </div>
+            <h1 id="practitioner-name">Your Practitioner</h1>
+            <p class="practitioner-name">Health Protocol</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Hello, <span id="client-name">Client</span>!</div>
+            <div class="protocol-name" id="protocol-name">Loading...</div>
+            
+            <div class="progress-section">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="week-info">
+                    Week <span id="current-week">1</span> of <span id="total-weeks">12</span>
+                    (<span id="completion-pct">0</span>% Complete)
+                </div>
+            </div>
+            
+            <h2 class="phase-title" id="phase-title">This Week's Protocol</h2>
+            <p class="instructions" id="instructions"></p>
+            
+            <h3 class="section-header" id="supplements-header" style="display: none;">💊 Supplements</h3>
+            <ul class="checklist" id="supplements-list"></ul>
+            
+            <h3 class="section-header" id="nutrition-header" style="display: none;">🥗 Nutrition</h3>
+            <ul class="checklist" id="nutrition-list"></ul>
+            
+            <h3 class="section-header" id="exercises-header" style="display: none;">💪 Exercise</h3>
+            <ul class="checklist" id="exercises-list"></ul>
+            
+            <h3 class="section-header" id="lifestyle-header" style="display: none;">🌿 Lifestyle</h3>
+            <ul class="checklist" id="lifestyle-list"></ul>
+            
+            <h3 class="section-header" id="timeline-header" style="display: none;">⭐ This Week's Focus</h3>
+            <ul class="checklist" id="timeline-list"></ul>
+            
+            <button id="save-progress-btn" class="action-btn" onclick="saveCompliance()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-bottom: 10px;">
+                💾 Save My Progress
+            </button>
+            
+            <div id="save-message"></div>
+            
+            <button class="action-btn secondary" onclick="markComplete()">✓ Mark All Complete</button>
+            
+            <button class="question-btn" onclick="openQuestionModal()">💬 Ask My Care Provider a Question</button>
+
+            <button class="print-btn" onclick="printProtocol()">🖨️ Print Protocol</button>
+            
+            <div class="replies-section" id="replies-section" style="display:none;">
+                <h3 style="color: var(--amber-light); margin-bottom: 15px;">Recent Replies from Your Practitioner:</h3>
+                <div id="replies-list"></div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Powered by Tree of Life AI
+        </div>
+    </div>
+
+    <div class="modal" id="question-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Ask Your Care Provider</h2>
+                <button class="close-btn" onclick="closeQuestionModal()">&times;</button>
+            </div>
+            
+            <textarea id="question-text" placeholder="Type your question here... (e.g., 'I'm experiencing some side effects from the supplements' or 'Can I adjust the timing of my protocol?')"></textarea>
+            
+            <div class="image-upload">
+                <label class="image-upload-btn">
+                    📸 Attach Image (Optional)
+                    <input type="file" id="image-input" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+                </label>
+                <div class="image-preview" id="image-preview" style="display:none;">
+                    <img id="preview-img" src="" alt="Preview">
+                    <button class="remove-image" onclick="removeImage()">×</button>
+                </div>
+            </div>
+            
+            <button class="send-btn" onclick="sendQuestion()" id="send-btn">Send Question</button>
+        </div>
+    </div>
+
+    <script>
+        const token = window.location.pathname.split('/').pop();
+        let completedItems = new Set();
+        let selectedImage = null;
+        let deferredPrompt = null;
+
+        function detectPlatform() {
+            const ua = navigator.userAgent;
+            const isIOS = /iPhone|iPad|iPod/.test(ua);
+            const isAndroid = /Android/.test(ua);
+            const isChrome = /Chrome/.test(ua) && !/Edg/.test(ua);
+            const isEdge = /Edg/.test(ua);
+            const isFirefox = /Firefox/.test(ua);
+            const isSafari = /Safari/.test(ua) && !isChrome && !isEdge;
+            const isMobile = isIOS || isAndroid;
+            
+            return { isIOS, isAndroid, isChrome, isEdge, isFirefox, isSafari, isMobile };
+        }
+
+        function showInstallOptions() {
+            const platform = detectPlatform();
+            const banner = document.getElementById('install-banner');
+            const content = document.getElementById('install-content');
+            
+            if (platform.isIOS && platform.isSafari) {
+                content.innerHTML = `
+                    <div class="install-icon">📱</div>
+                    <div class="install-text">
+                        <h3>Add to Home Screen</h3>
+                        <p>Tap Share button, then "Add to Home Screen"</p>
+                    </div>
+                    <div class="install-buttons">
+                        <button class="install-btn secondary" onclick="dismissInstall()">Got it</button>
+                    </div>
+                `;
+                banner.classList.add('show');
+            }
+            else if ((platform.isChrome || platform.isEdge) && deferredPrompt) {
+                banner.classList.add('show');
+            }
+            else if ((platform.isFirefox || (platform.isSafari && !platform.isMobile)) && !platform.isMobile) {
+                const isWindows = /Windows/.test(navigator.userAgent);
+                const isMac = /Mac/.test(navigator.userAgent);
+                
+                if (isWindows) {
+                    content.innerHTML = `
+                        <div class="install-icon">🔗</div>
+                        <div class="install-text">
+                            <h3>Add to Desktop (Windows)</h3>
+                            <p><strong>Method 1:</strong> Drag URL from address bar to Desktop<br>
+                            <strong>Method 2:</strong> Right-click Desktop → New → Shortcut → Paste URL</p>
+                        </div>
+                        <div class="install-buttons">
+                            <button class="install-btn download" onclick="copyUrlToClipboard()">📋 Copy URL</button>
+                            <button class="install-btn secondary" onclick="dismissInstall()">Got it</button>
+                        </div>
+                    `;
+                } else if (isMac) {
+                    content.innerHTML = `
+                        <div class="install-icon">🔗</div>
+                        <div class="install-text">
+                            <h3>Add to Desktop (Mac)</h3>
+                            <p>Drag the URL from the address bar to your Desktop or Dock</p>
+                        </div>
+                        <div class="install-buttons">
+                            <button class="install-btn secondary" onclick="dismissInstall()">Got it</button>
+                        </div>
+                    `;
+                }
+                banner.classList.add('show');
+            }
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            setTimeout(() => { showInstallOptions(); }, 3000);
+        });
+
+        async function installApp() {
+            if (!deferredPrompt) {
+                alert('Install not available. Try using Chrome or Edge.');
+                return;
+            }
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') console.log('App installed');
+            deferredPrompt = null;
+            document.getElementById('install-banner').classList.remove('show');
+        }
+
+        function copyUrlToClipboard() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                btn.style.background = '#22c55e';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 2000);
+            });
+        }
+
+        function dismissInstall() {
+            document.getElementById('install-banner').classList.remove('show');
+            localStorage.setItem('installDismissed', 'true');
+        }
+
+        setTimeout(() => {
+            if (!deferredPrompt) showInstallOptions();
+        }, 3000);
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/service-worker.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed'));
+        }
+
+        async function loadProtocol() {
+            try {
+                const response = await fetch(`/api/client-view/${token}`);
+                const data = await response.json();
+                
+                document.getElementById('client-name').textContent = data.client_name;
+                document.getElementById('practitioner-name').textContent = data.practitioner_name;
+                
+                if (!data.protocol) {
+                    document.getElementById('protocol-name').textContent = 'No active protocol';
+                    return;
+                }
+                
+                const protocol = data.protocol;
+                document.getElementById('protocol-name').textContent = protocol.name;
+                document.getElementById('current-week').textContent = protocol.current_week;
+                document.getElementById('total-weeks').textContent = protocol.total_weeks;
+                document.getElementById('completion-pct').textContent = protocol.completion_percentage;
+                document.getElementById('progress-fill').style.width = protocol.completion_percentage + '%';
+                
+                const phase = protocol.current_phase;
+                document.getElementById('phase-title').textContent = phase.title;
+                document.getElementById('instructions').textContent = phase.instructions;
+                
+                renderSection(phase.supplements, 'supplements');
+                renderSection(phase.nutrition, 'nutrition');
+                renderSection(phase.exercises, 'exercises');
+                renderSection(phase.lifestyle, 'lifestyle');
+                renderTimelineSection(phase.timeline);
+                
+            } catch (error) {
+                console.error('Error loading protocol:', error);
+                alert('Error loading your protocol. Please contact your practitioner.');
+            }
+        }
+        
+        function renderSection(items, sectionName) {
+            const list = document.getElementById(`${sectionName}-list`);
+            const header = document.getElementById(`${sectionName}-header`);
+            list.innerHTML = '';
+            
+            if (items && items.length > 0) {
+                header.style.display = 'flex';
+                items.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    const itemId = `${sectionName}-${index}`;
+                    
+                    li.innerHTML = `
+                        <div class="checkbox"></div>
+                        <span>${item}</span>
+                    `;
+                    li.dataset.itemId = itemId;
+                    li.dataset.itemText = item;
+                    li.onclick = () => toggleItem(li, itemId);
+                    list.appendChild(li);
+                });
+            } else {
+                header.style.display = 'none';
+            }
+        }
+        
+        function renderTimelineSection(items) {
+            const list = document.getElementById('timeline-list');
+            const header = document.getElementById('timeline-header');
+            list.innerHTML = '';
+            
+            if (items && items.length > 0) {
+                header.style.display = 'flex';
+                items.forEach((item, index) => {
+                    const li = document.createElement('li');
+                    
+                    if (item.includes('─── Protocol Timeline ───') ||
+                        item.includes('Week 1:') ||
+                        item.includes('Week 2:') ||
+                        item.includes('Week 3:') ||
+                        item.includes('Week 4:')) {
+                        li.style.cursor = 'default';
+                        li.style.background = 'rgba(0, 0, 0, 0.2)';
+                        li.innerHTML = `<span style="margin-left: 39px;">${item}</span>`;
+                    } else {
+                        const itemId = `timeline-${index}`;
+                        li.innerHTML = `
+                            <div class="checkbox"></div>
+                            <span>${item}</span>
+                        `;
+                        li.dataset.itemId = itemId;
+                        li.dataset.itemText = item;
+                        li.onclick = () => toggleItem(li, itemId);
+                    }
+                    list.appendChild(li);
+                });
+            } else {
+                header.style.display = 'none';
+            }
+        }
+
+        async function loadReplies() {
+            try {
+                const response = await fetch(`/api/client-view/${token}/replies`);
+                const data = await response.json();
+                
+                if (data.replies && data.replies.length > 0) {
+                    document.getElementById('replies-section').style.display = 'block';
+                    
+                    const repliesList = document.getElementById('replies-list');
+                    repliesList.innerHTML = '';
+                    
+                    data.replies.forEach(reply => {
+                        const card = document.createElement('div');
+                        card.className = 'reply-card';
+                        card.innerHTML = `
+                            <div class="reply-question">Your question: "${reply.your_question}"</div>
+                            <div class="reply-answer">${reply.practitioner_reply}</div>
+                            <div class="reply-date">Replied ${new Date(reply.replied_at).toLocaleDateString()}</div>
+                        `;
+                        repliesList.appendChild(card);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading replies:', error);
+            }
+        }
+
+        function toggleItem(element, itemId) {
+            element.classList.toggle('completed');
+            if (element.classList.contains('completed')) {
+                completedItems.add(itemId);
+            } else {
+                completedItems.delete(itemId);
+            }
+        }
+
+        async function saveCompliance() {
+            const saveBtn = document.getElementById('save-progress-btn');
+            const messageDiv = document.getElementById('save-message');
+            
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.style.opacity = '0.6';
+                saveBtn.textContent = '⏳ Saving...';
+            }
+            
+            try {
+                const completed_items = [];
+                const incomplete_items = [];
+                
+                document.querySelectorAll('.checklist li[data-item-id]').forEach(li => {
+                    const itemId = li.dataset.itemId;
+                    const itemText = li.dataset.itemText;
+                    const item = { id: itemId, text: itemText };
+                    
+                    if (completedItems.has(itemId)) {
+                        completed_items.push(item);
+                    } else {
+                        incomplete_items.push(item);
+                    }
+                });
+                
+                const total_items = completed_items.length + incomplete_items.length;
+                
+                const response = await fetch(`/api/client-view/${token}/submit-compliance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ completed_items, incomplete_items, total_items })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    if (messageDiv) {
+                        messageDiv.innerHTML = `
+                            <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); margin-top: 15px; text-align: center;">
+                                <div style="font-size: 48px; font-weight: bold; margin-bottom: 10px;">${result.compliance_score}%</div>
+                                <div style="font-size: 16px;">Week ${result.week_number} Compliance Score</div>
+                                <div style="font-size: 14px; margin-top: 10px; opacity: 0.9;">${completed_items.length} of ${total_items} items completed</div>
+                            </div>
+                        `;
+                    }
+                    alert(`✅ ${result.message}`);
+                } else {
+                    if (messageDiv) {
+                        messageDiv.innerHTML = `<div style="color: #ef4444; text-align: center; margin-top: 15px; font-weight: 600;">❌ Failed to save</div>`;
+                    }
+                    alert('❌ Failed to save progress.');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                if (messageDiv) {
+                    messageDiv.innerHTML = '<div style="color: #ef4444; text-align: center; margin-top: 15px; font-weight: 600;">❌ Error saving.</div>';
+                }
+                alert('❌ Error saving progress.');
+            } finally {
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.style.opacity = '1';
+                    saveBtn.textContent = '💾 Save My Progress';
+                }
+            }
+        }
+
+        async function markComplete() {
+            const totalItems = document.querySelectorAll('.checklist li[data-item-id]').length;
+            const completedCount = completedItems.size;
+            const complianceScore = Math.round((completedCount / totalItems) * 100);
+            
+            const completedItemsDetails = [];
+            const incompleteItemsDetails = [];
+            
+            document.querySelectorAll('.checklist li[data-item-id]').forEach(li => {
+                const itemId = li.dataset.itemId;
+                const itemText = li.dataset.itemText;
+                const item = { id: itemId, text: itemText };
+                
+                if (completedItems.has(itemId)) {
+                    completedItemsDetails.push(item);
+                } else {
+                    incompleteItemsDetails.push(item);
+                }
+            });
+            
+            try {
+                await fetch(`/api/client-view/${token}/compliance`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        compliance_score: complianceScore,
+                        completed_items: completedItemsDetails,
+                        incomplete_items: incompleteItemsDetails,
+                        total_items: totalItems
+                    })
+                });
+                
+                alert(`✓ Progress saved! ${completedCount}/${totalItems} items completed.`);
+                
+                document.querySelectorAll('.checklist li[data-item-id]').forEach(li => {
+                    li.classList.add('completed');
+                    if (li.dataset.itemId) {
+                        completedItems.add(li.dataset.itemId);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error saving:', error);
+                alert('Error saving your progress. Please try again.');
+            }
+        }
+
+        function openQuestionModal() {
+            document.getElementById('question-modal').classList.add('active');
+        }
+
+        function closeQuestionModal() {
+            document.getElementById('question-modal').classList.remove('active');
+            document.getElementById('question-text').value = '';
+            removeImage();
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file');
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image too large. Maximum size is 5MB');
+                return;
+            }
+            
+            selectedImage = file;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('preview-img').src = e.target.result;
+                document.getElementById('image-preview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage() {
+            selectedImage = null;
+            document.getElementById('image-input').value = '';
+            document.getElementById('image-preview').style.display = 'none';
+        }
+
+        async function sendQuestion() {
+            const questionText = document.getElementById('question-text').value.trim();
+            
+            if (!questionText) {
+                alert('Please enter a question');
+                return;
+            }
+            
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('message', questionText);
+                
+                if (selectedImage) {
+                    formData.append('image', selectedImage);
+                }
+                
+                const response = await fetch(`/api/client-view/${token}/message`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('✓ Your question has been sent to your care provider!');
+                    closeQuestionModal();
+                } else {
+                    alert('Error sending message. Please try again.');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error sending message. Please try again.');
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send Question';
+            }
+        }
+
+        function printProtocol() {
+            window.print();
+        }
+
+        loadProtocol();
+        loadReplies();
+        setInterval(loadReplies, 30000);
+    </script>
+</body>
+</html>
