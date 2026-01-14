@@ -1058,8 +1058,48 @@ async def create_checkout_session(request: Request):
     user_id = get_current_user_id(request)
     data = await request.json()
     tier = data.get('tier')
+    billing = data.get('billing', 'monthly')  # Default to monthly
     
-    if tier not in STRIPE_PRICES:
+    # Construct price key: tier_billing (e.g., "basic_monthly", "premium_annual")
+    price_key = f"{tier}_{billing}"
+    
+    if price_key not in STRIPE_PRICES:
+        raise HTTPException(status_code=400, detail=f"Invalid tier/billing combination: {price_key}")
+    
+    price_id = STRIPE_PRICES[price_key]
+    if not price_id:
+        raise HTTPException(status_code=500, detail=f"Stripe price not configured for {price_key}")
+    
+    with get_db_context() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if not user.stripe_customer_id:
+            customer = stripe.Customer.create(
+                email=user.email,
+                metadata={'user_id': str(user.id)}
+            )
+            user.stripe_customer_id = customer.id
+            db.commit()
+        
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                customer=user.stripe_customer_id,
+                payment_method_types=['card'],
+                line_items=[{'price': price_id, 'quantity': 1}],
+                mode='subscription',
+                success_url='https://treeoflifeai.com/subscriptions.html?success=true',
+                cancel_url='https://treeoflifeai.com/index.html',
+                client_reference_id=str(user.id),
+                metadata={'user_id': str(user.id), 'tier': tier}
+            )
+            
+            return {"checkout_url": checkout_session.url}
+        
+        except Exception as e:
+            print(f"❌ Stripe error: {e}")
+            raise HTTPException(status_code=500, detail=f"Stripe error: {str(e)}")
         raise HTTPException(status_code=400, detail="Invalid tier")
     
     price_id = STRIPE_PRICES[tier]
