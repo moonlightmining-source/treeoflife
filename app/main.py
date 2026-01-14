@@ -70,9 +70,12 @@ anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # ==================== STRIPE PRICE IDS ====================
 STRIPE_PRICES = {
-    'basic': os.getenv('STRIPE_BASIC_PRICE_ID'),
-    'premium': os.getenv('STRIPE_PREMIUM_PRICE_ID'),
-    'pro': os.getenv('STRIPE_PRO_PRICE_ID')
+    'basic_monthly': os.getenv('BASIC_MONTHLY_PRICE_ID'),
+    'basic_annual': os.getenv('BASIC_ANNUAL_PRICE_ID'),
+    'premium_monthly': os.getenv('PREMIUM_MONTHLY_PRICE_ID'),
+    'premium_annual': os.getenv('PREMIUM_ANNUAL_PRICE_ID'),
+    'pro_monthly': os.getenv('PRO_MONTHLY_PRICE_ID'),
+    'pro_annual': os.getenv('PRO_ANNUAL_PRICE_ID')
 }
 
 # ==================== DATABASE SETUP ====================
