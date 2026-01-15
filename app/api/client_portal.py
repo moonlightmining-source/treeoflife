@@ -290,13 +290,7 @@ async def get_client_view_data(token: str):
                 if nut_data.get('dietary_approach') and str(nut_data['dietary_approach']).strip():
                     nutrition_list.append(f"🥗 Dietary Approach: {nut_data['dietary_approach']}")
             
-            if isinstance(nut_data, dict):
-            
-            if isinstance(nut_data, dict):
-                # Add dietary approach
-                if nut_data.get('dietary_approach') and str(nut_data['dietary_approach']).strip():
-                    nutrition_list.append(f"🥗 Dietary Approach: {nut_data['dietary_approach']}")
-                
+                                 
                 # Add foods to include (handle both string and array)
                 if nut_data.get('foods_to_include'):
                     foods = nut_data['foods_to_include']
