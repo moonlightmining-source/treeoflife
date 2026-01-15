@@ -271,26 +271,24 @@ async def get_client_view_data(token: str):
                         else:
                             lifestyle_changes.append(item)
         
-        # Build nutrition list
+       # Build nutrition list
         nutrition_list = []
         
         # Add nutrition
         if protocol[7]:  # nutrition
             nut_data = protocol[7]
-            if protocol[7]:  # nutrition
-
-            nut_data = protocol[7]
-            print(f"NUTRITION DEBUG - Type: {type(nut_data)}, Value: {nut_data}")
-          
             
             # Handle if it's a JSON string
             if isinstance(nut_data, str):
                 try:
                     nut_data = json.loads(nut_data)
-                    print(f"Parsed nutrition data: {nut_data}")
                 except:
-                    print("Failed to parse as JSON")
                     pass
+            
+            if isinstance(nut_data, dict):
+                # Add dietary approach
+                if nut_data.get('dietary_approach') and str(nut_data['dietary_approach']).strip():
+                    nutrition_list.append(f"🥗 Dietary Approach: {nut_data['dietary_approach']}")
             
             if isinstance(nut_data, dict):
             
