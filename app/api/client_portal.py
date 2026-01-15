@@ -277,12 +277,22 @@ async def get_client_view_data(token: str):
         # Add nutrition
         if protocol[7]:  # nutrition
             nut_data = protocol[7]
+            
+            # DEBUG: Log what we're actually getting
+            print(f"\n=== NUTRITION DEBUG ===")
+            print(f"Raw nutrition data type: {type(nut_data)}")
+            print(f"Raw nutrition data: {nut_data}")
+            
             # Handle if it's a JSON string
             if isinstance(nut_data, str):
                 try:
                     nut_data = json.loads(nut_data)
+                    print(f"Parsed nutrition data: {nut_data}")
                 except:
+                    print("Failed to parse as JSON")
                     pass
+            
+            if isinstance(nut_data, dict):
             
             if isinstance(nut_data, dict):
                 # Add dietary approach
