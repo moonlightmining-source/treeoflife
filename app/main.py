@@ -644,7 +644,24 @@ async def get_current_user(request: Request):
             "subscription_tier": user.subscription_tier or 'free',
             "family_member_limit": user.family_member_limit or 0
         }
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Optional
 
+security = HTTPBearer(auto_error=False)
+
+def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Optional[dict]:
+    """Optional JWT auth - returns user if logged in, None if guest"""
+    if not credentials:
+        return None
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+        return {"sub": int(user_id)}
+    except JWTError:
+        return None
 @app.delete("/api/auth/account")
 async def delete_account(request: Request):
     """Delete user account and all associated data"""
@@ -1054,9 +1071,11 @@ async def get_subscription_status(request: Request):
         }
 
 @app.post("/api/subscription/create-checkout")
-async def create_checkout(request: dict, current_user: dict = Depends(get_current_user_optional)):
-    tier = request.get('tier')
-    billing = request.get('billing', 'monthly')
+async def create_checkout(request: Request, current_user: dict = Depends(get_current_user_optional)):
+    # Parse JSON body first
+    data = await request.json()
+    tier = data.get('tier')
+    billing = data.get('billing', 'monthly')
     
     price_key = f"{tier}_{billing}"
     
@@ -1067,11 +1086,11 @@ async def create_checkout(request: dict, current_user: dict = Depends(get_curren
     if not price_id:
         raise HTTPException(status_code=500, detail=f"Stripe price not configured for {price_key}")
     
-    # Handle both logged-in and guest checkout
+    # Handle logged-in users
     customer_id = None
-    customer_email = None
+    user_id_str = None
     
-    if current_user:  # User is logged in
+    if current_user:
         with get_db_context() as db:
             user = db.query(User).filter(User.id == current_user['sub']).first()
             if user:
@@ -1083,62 +1102,29 @@ async def create_checkout(request: dict, current_user: dict = Depends(get_curren
                     user.stripe_customer_id = customer.id
                     db.commit()
                 customer_id = user.stripe_customer_id
-                customer_email = user.email
-        
-        try:
-            checkout_session = stripe.checkout.Session.create(
-                customer=user.stripe_customer_id,
-                payment_method_types=['card'],
-                line_items=[{'price': price_id, 'quantity': 1}],
-                mode='subscription',
-                success_url='https://treeoflifeai.com/subscriptions.html?success=true',
-                cancel_url='https://treeoflifeai.com/index.html',
-                client_reference_id=str(user.id),
-                metadata={'user_id': str(user.id), 'tier': tier}
-            )
-            
-            return {"checkout_url": checkout_session.url}
-        
-        except Exception as e:
-            print(f"❌ Stripe error: {e}")
-            raise HTTPException(status_code=500, detail=f"Stripe error: {str(e)}")
-        raise HTTPException(status_code=400, detail="Invalid tier")
+                user_id_str = str(user.id)
     
-    price_id = STRIPE_PRICES[tier]
-    if not price_id:
-        raise HTTPException(status_code=500, detail=f"Stripe price not configured for {tier}")
+    # Create checkout session
+    try:
+        session_params = {
+            'payment_method_types': ['card'],
+            'line_items': [{'price': price_id, 'quantity': 1}],
+            'mode': 'subscription',
+            'success_url': 'https://treeoflifeai.com/subscriptions.html?success=true',
+            'cancel_url': 'https://treeoflifeai.com/index.html'
+        }
+        
+        if customer_id:
+            session_params['customer'] = customer_id
+            session_params['client_reference_id'] = user_id_str
+            session_params['metadata'] = {'user_id': user_id_str, 'tier': tier}
+        
+        checkout_session = stripe.checkout.Session.create(**session_params)
+        return {"checkout_url": checkout_session.url}
     
-    with get_db_context() as db:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        if not user.stripe_customer_id:
-            customer = stripe.Customer.create(
-                email=user.email,
-                metadata={'user_id': str(user.id)}
-            )
-            user.stripe_customer_id = customer.id
-            db.commit()
-        
-        try:
-            checkout_session = stripe.checkout.Session.create(
-                customer=user.stripe_customer_id,
-                payment_method_types=['card'],
-                line_items=[{'price': price_id, 'quantity': 1}],
-                mode='subscription',
-                success_url='https://treeoflifeai.com/subscriptions.html?success=true',
-                cancel_url='https://treeoflifeai.com/index.html',
-                client_reference_id=str(user.id),
-                metadata={'user_id': str(user.id), 'tier': tier}
-            )
-            
-            return {"checkout_url": checkout_session.url}
-        
-        except Exception as e:
-            print(f"❌ Stripe error: {e}")
-            raise HTTPException(status_code=500, detail=f"Stripe error: {str(e)}")
-
+    except Exception as e:
+        print(f"❌ Stripe error: {e}")
+        raise HTTPException(status_code=500, detail=f"Stripe error: {str(e)}")
 @app.post("/api/subscription/webhook")
 async def stripe_webhook(request: Request):
     payload = await request.body()
