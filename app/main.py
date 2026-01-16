@@ -1054,7 +1054,7 @@ async def get_subscription_status(request: Request):
         }
 
 @app.post("/api/subscription/create-checkout")
-async def create_checkout_session(request: Request):
+async def create_checkout(request: dict, current_user: dict = Depends(get_current_user_optional)):
     user_id = get_current_user_id(request)
     data = await request.json()
     tier = data.get('tier')
