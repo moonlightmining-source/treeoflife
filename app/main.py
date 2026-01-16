@@ -1055,12 +1055,9 @@ async def get_subscription_status(request: Request):
 
 @app.post("/api/subscription/create-checkout")
 async def create_checkout(request: dict, current_user: dict = Depends(get_current_user_optional)):
-    user_id = get_current_user_id(request)
-    data = await request.json()
-    tier = data.get('tier')
-    billing = data.get('billing', 'monthly')  # Default to monthly
+    tier = request.get('tier')
+    billing = request.get('billing', 'monthly')
     
-    # Construct price key: tier_billing (e.g., "basic_monthly", "premium_annual")
     price_key = f"{tier}_{billing}"
     
     if price_key not in STRIPE_PRICES:
@@ -1070,18 +1067,23 @@ async def create_checkout(request: dict, current_user: dict = Depends(get_curren
     if not price_id:
         raise HTTPException(status_code=500, detail=f"Stripe price not configured for {price_key}")
     
-    with get_db_context() as db:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        if not user.stripe_customer_id:
-            customer = stripe.Customer.create(
-                email=user.email,
-                metadata={'user_id': str(user.id)}
-            )
-            user.stripe_customer_id = customer.id
-            db.commit()
+    # Handle both logged-in and guest checkout
+    customer_id = None
+    customer_email = None
+    
+    if current_user:  # User is logged in
+        with get_db_context() as db:
+            user = db.query(User).filter(User.id == current_user['sub']).first()
+            if user:
+                if not user.stripe_customer_id:
+                    customer = stripe.Customer.create(
+                        email=user.email,
+                        metadata={'user_id': str(user.id)}
+                    )
+                    user.stripe_customer_id = customer.id
+                    db.commit()
+                customer_id = user.stripe_customer_id
+                customer_email = user.email
         
         try:
             checkout_session = stripe.checkout.Session.create(
