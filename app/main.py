@@ -2644,12 +2644,14 @@ async def admin_list_users(request: Request, admin_password: str):
             
             user_list = []
             for user in users:
+                           user_list = []
+            for user in users:
                 user_list.append({
                     "email": user.email,
                     "tier": user.subscription_tier or 'free',
-                    "status": user.subscription_status or 'inactive',
+                    "status": getattr(user, 'subscription_status', 'active') if user.subscription_tier and user.subscription_tier != 'free' else 'inactive',
                     "family_limit": user.family_member_limit or 0,
-                    "created_at": user.created_at.isoformat() if user.created_at else None
+                    "created_at": user.created_at.isoformat() if hasattr(user, 'created_at') and user.created_at else None
                 })
             
             return {
