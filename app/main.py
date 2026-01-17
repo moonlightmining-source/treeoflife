@@ -2531,6 +2531,7 @@ async def delete_client_activity(request: Request, activity_id: int):
         
     return {"success": True, "message": "Client deleted successfully"}
     
+
 # Add this endpoint
 @app.post("/api/admin/activate-subscription")
 async def admin_activate_subscription(request: Request):
@@ -2542,7 +2543,7 @@ async def admin_activate_subscription(request: Request):
         tier = data.get('tier')
         
         # Verify admin password
-        if admin_password != ADMIN_PASSWORD:
+        if admin_password != SUBSCRIPTION_ADMIN_PASSWORD:
             raise HTTPException(status_code=403, detail="Invalid admin password")
         
         # Validate tier
@@ -2598,7 +2599,7 @@ async def admin_deactivate_subscription(request: Request):
         user_email = data.get('email')
         
         # Verify admin password
-        if admin_password != ADMIN_PASSWORD:
+        if admin_password != SUBSCRIPTION_ADMIN_PASSWORD:
             raise HTTPException(status_code=403, detail="Invalid admin password")
         
         with get_db_context() as db:
@@ -2635,7 +2636,7 @@ async def admin_list_users(request: Request, admin_password: str):
     """Admin endpoint to list all users and their subscriptions"""
     try:
         # Verify admin password
-        if admin_password != ADMIN_PASSWORD:
+        if admin_password != SUBSCRIPTION_ADMIN_PASSWORD:
             raise HTTPException(status_code=403, detail="Invalid admin password")
         
         with get_db_context() as db:
