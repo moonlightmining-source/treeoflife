@@ -2531,7 +2531,7 @@ async def delete_client_activity(request: Request, activity_id: int):
         
     return {"success": True, "message": "Client deleted successfully"}
     
-
+SUBSCRIPTION_ADMIN_PASSWORD = os.getenv('SUBSCRIPTION_ADMIN_PASSWORD', 'Pootchi30')
 # Add this endpoint
 @app.post("/api/admin/activate-subscription")
 async def admin_activate_subscription(request: Request):
