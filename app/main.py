@@ -2240,7 +2240,45 @@ async def get_client_protocols(request: Request):
             })
         
         return {"assignments": result}
-
+@app.delete("/api/client-protocols/remove/{client_id}")
+async def remove_client_protocol(client_id: int, request: Request):
+    """Remove active protocol from a client"""
+    user_id = get_current_user_id(request)
+    
+    try:
+        with get_db_context() as db:
+            # Find active protocol assignment for this client
+            assignment = db.query(ClientProtocol).filter(
+                ClientProtocol.client_id == client_id,
+                ClientProtocol.status == 'active'
+            ).first()
+            
+            if not assignment:
+                raise HTTPException(status_code=404, detail="No active protocol found")
+            
+            # Verify this client belongs to the current user
+            client = db.query(FamilyMember).filter(
+                FamilyMember.id == client_id,
+                FamilyMember.owner_user_id == user_id
+            ).first()
+            
+            if not client:
+                raise HTTPException(status_code=403, detail="Not your client")
+            
+            # Mark as completed/removed instead of deleting
+            assignment.status = 'completed'
+            db.commit()
+            
+            return {
+                "success": True,
+                "message": "Protocol removed successfully"
+            }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error removing protocol: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 @app.post("/api/compliance")
 async def log_compliance(request: Request, compliance: ComplianceCreate):
     """Log client compliance"""
