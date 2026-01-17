@@ -483,8 +483,6 @@ def run_migration():
     print("✅ Database migration completed!")
 
 # ==================== FASTAPI APP ====================
-
-# ==================== FASTAPI APP ====================
 app = FastAPI(title="Tree of Life AI API")
 import os
 if os.path.exists("app/static"):
@@ -2532,6 +2530,138 @@ async def delete_client_activity(request: Request, activity_id: int):
         db.commit()
         
     return {"success": True, "message": "Client deleted successfully"}
+    
+# Add this endpoint
+@app.post("/api/admin/activate-subscription")
+async def admin_activate_subscription(request: Request):
+    """Admin endpoint to manually activate subscriptions"""
+    try:
+        data = await request.json()
+        admin_password = data.get('admin_password')
+        user_email = data.get('email')
+        tier = data.get('tier')
+        
+        # Verify admin password
+        if admin_password != ADMIN_PASSWORD:
+            raise HTTPException(status_code=403, detail="Invalid admin password")
+        
+        # Validate tier
+        if tier not in ['free', 'basic', 'premium', 'pro']:
+            raise HTTPException(status_code=400, detail="Invalid tier")
+        
+        # Update user subscription
+        with get_db_context() as db:
+            user = db.query(User).filter(User.email == user_email).first()
+            
+            if not user:
+                raise HTTPException(status_code=404, detail=f"User not found: {user_email}")
+            
+            # Set subscription details
+            user.subscription_tier = tier
+            user.subscription_status = 'active'
+            
+            # Set family member limits
+            if tier == 'basic':
+                user.family_member_limit = 1
+            elif tier == 'premium':
+                user.family_member_limit = 5
+            elif tier == 'pro':
+                user.family_member_limit = 999
+            else:  # free
+                user.family_member_limit = 0
+            
+            db.commit()
+            
+            return {
+                "success": True,
+                "message": f"✅ {user_email} activated with {tier.upper()} tier",
+                "user": {
+                    "email": user.email,
+                    "tier": user.subscription_tier,
+                    "family_limit": user.family_member_limit
+                }
+            }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Admin activation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/admin/deactivate-subscription")
+async def admin_deactivate_subscription(request: Request):
+    """Admin endpoint to deactivate subscriptions"""
+    try:
+        data = await request.json()
+        admin_password = data.get('admin_password')
+        user_email = data.get('email')
+        
+        # Verify admin password
+        if admin_password != ADMIN_PASSWORD:
+            raise HTTPException(status_code=403, detail="Invalid admin password")
+        
+        with get_db_context() as db:
+            user = db.query(User).filter(User.email == user_email).first()
+            
+            if not user:
+                raise HTTPException(status_code=404, detail=f"User not found: {user_email}")
+            
+            # Reset to free tier
+            user.subscription_tier = 'free'
+            user.subscription_status = 'inactive'
+            user.family_member_limit = 0
+            
+            db.commit()
+            
+            return {
+                "success": True,
+                "message": f"✅ {user_email} deactivated (reverted to FREE)",
+                "user": {
+                    "email": user.email,
+                    "tier": user.subscription_tier
+                }
+            }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Admin deactivation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/list-users")
+async def admin_list_users(request: Request, admin_password: str):
+    """Admin endpoint to list all users and their subscriptions"""
+    try:
+        # Verify admin password
+        if admin_password != ADMIN_PASSWORD:
+            raise HTTPException(status_code=403, detail="Invalid admin password")
+        
+        with get_db_context() as db:
+            users = db.query(User).all()
+            
+            user_list = []
+            for user in users:
+                user_list.append({
+                    "email": user.email,
+                    "tier": user.subscription_tier or 'free',
+                    "status": user.subscription_status or 'inactive',
+                    "family_limit": user.family_member_limit or 0,
+                    "created_at": user.created_at.isoformat() if user.created_at else None
+                })
+            
+            return {
+                "success": True,
+                "total_users": len(user_list),
+                "users": user_list
+            }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Admin list error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ==================== HEALTH CHECK ====================
 
