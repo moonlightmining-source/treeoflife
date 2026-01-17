@@ -2259,7 +2259,7 @@ async def remove_client_protocol(client_id: int, request: Request):
             # Verify this client belongs to the current user
             client = db.query(FamilyMember).filter(
                 FamilyMember.id == client_id,
-                FamilyMember.owner_user_id == user_id
+                FamilyMember.user_id == user_id
             ).first()
             
             if not client:
