@@ -663,31 +663,61 @@ def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials
 @app.delete("/api/auth/account")
 async def delete_account(request: Request):
     """Delete user account and all associated data"""
-    user_id = get_current_user_id(request)
-    
-    with get_db_context() as db:
-        user = db.query(User).filter(User.id == user_id).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+    try:
+        user_id = get_current_user_id(request)
         
-        db.query(Message).filter(Message.conversation_id.in_(
-            db.query(Conversation.id).filter(Conversation.user_id == user_id)
-        )).delete(synchronize_session=False)
-        
-        db.query(Conversation).filter(Conversation.user_id == user_id).delete()
-        db.query(FamilyMember).filter(FamilyMember.user_id == user_id).delete()
-        db.query(HealthProfile).filter(HealthProfile.user_id == user_id).delete()
-        db.query(HealthMetric).filter(HealthMetric.user_id == user_id).delete()
-        
-        try:
-            db.execute(text("DELETE FROM lab_results WHERE user_id = :user_id"), {'user_id': str(user_id)})
-        except:
-            pass
-        
-        db.delete(user)
-        db.commit()
-        
-        return {"success": True, "message": "Account deleted"}
+        with get_db_context() as db:
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            # Delete in correct order to avoid foreign key issues
+            try:
+                # Delete messages first (they reference conversations)
+                db.query(Message).filter(Message.conversation_id.in_(
+                    db.query(Conversation.id).filter(Conversation.user_id == user_id)
+                )).delete(synchronize_session=False)
+                db.commit()
+                
+                # Delete conversations
+                db.query(Conversation).filter(Conversation.user_id == user_id).delete(synchronize_session=False)
+                db.commit()
+                
+                # Delete family members
+                db.query(FamilyMember).filter(FamilyMember.user_id == user_id).delete(synchronize_session=False)
+                db.commit()
+                
+                # Delete health profiles
+                db.query(HealthProfile).filter(HealthProfile.user_id == user_id).delete(synchronize_session=False)
+                db.commit()
+                
+                # Delete health metrics
+                db.query(HealthMetric).filter(HealthMetric.user_id == user_id).delete(synchronize_session=False)
+                db.commit()
+                
+                # Delete lab results
+                try:
+                    db.execute(text("DELETE FROM lab_results WHERE user_id = :user_id"), {'user_id': str(user_id)})
+                    db.commit()
+                except Exception as e:
+                    print(f"Lab results deletion error: {e}")
+                
+                # Finally delete user
+                db.delete(user)
+                db.commit()
+                
+            except Exception as e:
+                db.rollback()
+                print(f"Error during account deletion: {e}")
+                raise HTTPException(status_code=500, detail=f"Error deleting account data: {str(e)}")
+            
+            return {"success": True, "message": "Account deleted successfully"}
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Unexpected error in delete_account: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while deleting your account")
 
 # ==================== CHAT ENDPOINTS ====================
 
