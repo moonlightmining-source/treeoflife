@@ -661,63 +661,117 @@ def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials
     except JWTError:
         return None
 @app.delete("/api/auth/account")
-async def delete_account(request: Request):
-    """Delete user account and all associated data"""
+async def delete_account(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete user account and ALL associated data.
+    Order matters due to foreign key constraints.
+    """
     try:
-        user_id = get_current_user_id(request)
+        user_id = current_user['user_id']
         
-        with get_db_context() as db:
+        # ✅ STEP 1: Cancel Stripe subscription first
+        try:
             user = db.query(User).filter(User.id == user_id).first()
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
-            
-            # Delete in correct order to avoid foreign key issues
-            try:
-                # Delete messages first (they reference conversations)
-                db.query(Message).filter(Message.conversation_id.in_(
-                    db.query(Conversation.id).filter(Conversation.user_id == user_id)
-                )).delete(synchronize_session=False)
-                db.commit()
-                
-                # Delete conversations
-                db.query(Conversation).filter(Conversation.user_id == user_id).delete(synchronize_session=False)
-                db.commit()
-                
-                # Delete family members
-                db.query(FamilyMember).filter(FamilyMember.user_id == user_id).delete(synchronize_session=False)
-                db.commit()
-                
-                # Delete health profiles
-                db.query(HealthProfile).filter(HealthProfile.user_id == user_id).delete(synchronize_session=False)
-                db.commit()
-                
-                # Delete health metrics
-                db.query(HealthMetric).filter(HealthMetric.user_id == user_id).delete(synchronize_session=False)
-                db.commit()
-                
-                # Delete lab results
+            if user and user.stripe_customer_id:
                 try:
-                    db.execute(text("DELETE FROM lab_results WHERE user_id = :user_id"), {'user_id': str(user_id)})
-                    db.commit()
-                except Exception as e:
-                    print(f"Lab results deletion error: {e}")
-                
-                # Finally delete user
-                db.delete(user)
-                db.commit()
-                
-            except Exception as e:
-                db.rollback()
-                print(f"Error during account deletion: {e}")
-                raise HTTPException(status_code=500, detail=f"Error deleting account data: {str(e)}")
-            
-            return {"success": True, "message": "Account deleted successfully"}
-            
-    except HTTPException:
-        raise
+                    subscriptions = stripe.Subscription.list(
+                        customer=user.stripe_customer_id,
+                        status='active'
+                    )
+                    for subscription in subscriptions.data:
+                        stripe.Subscription.delete(subscription.id)
+                except Exception as stripe_error:
+                    print(f"Stripe cancellation error: {stripe_error}")
+                    # Continue with deletion even if Stripe fails
+        except Exception as e:
+            print(f"Error canceling subscription: {e}")
+        
+        # ✅ STEP 2: Delete in correct order (child -> parent)
+        
+        # 2.1: Delete client_protocols (references family_members)
+        db.execute(
+            text("""
+                DELETE FROM client_protocols 
+                WHERE client_id IN (
+                    SELECT id FROM family_members WHERE user_id = :user_id
+                )
+            """),
+            {"user_id": user_id}
+        )
+        
+        # 2.2: Delete protocol_library (owned by user)
+        db.execute(
+            text("DELETE FROM protocol_library WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        # 2.3: Delete family_members (now safe, no more references)
+        db.execute(
+            text("DELETE FROM family_members WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        # 2.4: Delete lab_results
+        db.execute(
+            text("DELETE FROM lab_results WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        # 2.5: Delete health_metrics
+        db.execute(
+            text("DELETE FROM health_metrics WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        # 2.6: Delete health_profile
+        db.execute(
+            text("DELETE FROM health_profiles WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        # 2.7: Delete chat conversations and messages
+        db.execute(
+            text("DELETE FROM chat_messages WHERE conversation_id IN (SELECT id FROM chat_conversations WHERE user_id = :user_id)"),
+            {"user_id": user_id}
+        )
+        db.execute(
+            text("DELETE FROM chat_conversations WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        # 2.8: Delete any other user-related data
+        db.execute(
+            text("DELETE FROM user_settings WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        # ✅ STEP 3: Finally delete the user account
+        db.execute(
+            text("DELETE FROM users WHERE id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        # ✅ STEP 4: Commit all deletions
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Account and all data permanently deleted"
+        }
+        
     except Exception as e:
-        print(f"Unexpected error in delete_account: {e}")
-        raise HTTPException(status_code=500, detail="An error occurred while deleting your account")
+        db.rollback()
+        print(f"Error deleting account: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error deleting account data: {str(e)}"
+        )
+    finally:
+        db.close()
+
 
 # ==================== CHAT ENDPOINTS ====================
 
