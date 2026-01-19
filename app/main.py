@@ -785,14 +785,8 @@ async def delete_account(
             text("DELETE FROM health_profiles WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
-        
-      # 2.9: Delete chat conversations
-        db.execute(
-            text("DELETE FROM chat_conversations WHERE user_id = :user_id"),
-            {"user_id": user_id}
-        )
-        
-        # 2.10: Delete any other user-related data
+                     
+        # 2.9: Delete any other user-related data
         db.execute(
             text("DELETE FROM user_settings WHERE user_id = :user_id"),
             {"user_id": user_id}
