@@ -17,13 +17,13 @@ def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 def create_token(user_id: str) -> str:
-    payload = {'user_id': str(user_id), 'exp': datetime.utcnow() + timedelta(days=7)}
+    payload = {'sub': str(user_id), 'exp': datetime.utcnow() + timedelta(days=7)}
     return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
 
 def verify_token(token: str) -> str:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-        return payload['user_id']
+        return payload['sub']
     except:
         raise HTTPException(status_code=401, detail="Invalid token")
 
