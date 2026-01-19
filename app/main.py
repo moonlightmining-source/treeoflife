@@ -711,11 +711,24 @@ async def delete_account(
                     print(f"Stripe cancellation error: {stripe_error}")
                     # Continue with deletion even if Stripe fails
         except Exception as e:
-            print(f"Error canceling subscription: {e}")
-        
+            print(f"Error canceling subscription: {e}")        
+      
         # ✅ STEP 2: Delete in correct order (child -> parent)
         
-        # 2.1: Delete client_protocols (references family_members)
+        # 2.1: Delete compliance_logs first (references client_protocols)
+        db.execute(
+            text("""
+                DELETE FROM compliance_logs 
+                WHERE client_protocol_id IN (
+                    SELECT cp.id FROM client_protocols cp
+                    JOIN family_members fm ON cp.client_id = fm.id
+                    WHERE fm.user_id = :user_id
+                )
+            """),
+            {"user_id": user_id}
+        )
+        
+        # 2.2: Delete client_protocols (references family_members)
         db.execute(
             text("""
                 DELETE FROM client_protocols 
@@ -726,37 +739,37 @@ async def delete_account(
             {"user_id": user_id}
         )
         
-        # 2.2: Delete protocol_library (owned by user)
+        # 2.3: Delete protocol_library (owned by user)
         db.execute(
             text("DELETE FROM protocol_library WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.3: Delete family_members (now safe, no more references)
+        # 2.4: Delete family_members (now safe, no more references)
         db.execute(
             text("DELETE FROM family_members WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.4: Delete lab_results
+        # 2.5: Delete lab_results
         db.execute(
             text("DELETE FROM lab_results WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.5: Delete health_metrics
+        # 2.6: Delete health_metrics
         db.execute(
             text("DELETE FROM health_metrics WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.6: Delete health_profile
+        # 2.7: Delete health_profile
         db.execute(
             text("DELETE FROM health_profiles WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.7: Delete chat conversations and messages
+        # 2.8: Delete chat conversations and messages
         db.execute(
             text("DELETE FROM chat_messages WHERE conversation_id IN (SELECT id FROM chat_conversations WHERE user_id = :user_id)"),
             {"user_id": user_id}
@@ -766,7 +779,7 @@ async def delete_account(
             {"user_id": user_id}
         )
         
-        # 2.8: Delete any other user-related data
+        # 2.9: Delete any other user-related data
         db.execute(
             text("DELETE FROM user_settings WHERE user_id = :user_id"),
             {"user_id": user_id}
