@@ -83,7 +83,13 @@ STRIPE_PRICES = {
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
+def get_db():
+    """Dependency for getting database session"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 @contextmanager
 def get_db_context():
     db = SessionLocal()
