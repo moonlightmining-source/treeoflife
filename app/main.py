@@ -750,34 +750,32 @@ async def delete_account(
             {"user_id": user_id}
         )
         
+                    
         # 2.4: Delete family_members (now safe, no more references)
-        
-              
-        # 2.3: Delete family_members (now safe, no more references)
         db.execute(
             text("DELETE FROM family_members WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.4: Delete lab_results
+        # 2.5: Delete lab_results
         db.execute(
             text("DELETE FROM lab_results WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.5: Delete health_metrics
+        # 2.6: Delete health_metrics
         db.execute(
             text("DELETE FROM health_metrics WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.6: Delete health_profile
+        # 2.7: Delete health_profile
         db.execute(
             text("DELETE FROM health_profiles WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.7: Delete chat conversations and messages
+        # 2.8: Delete chat conversations and messages
         db.execute(
             text("DELETE FROM chat_messages WHERE conversation_id IN (SELECT id FROM chat_conversations WHERE user_id = :user_id)"),
             {"user_id": user_id}
@@ -787,7 +785,7 @@ async def delete_account(
             {"user_id": user_id}
         )
         
-        # 2.8: Delete any other user-related data
+        # 2.9: Delete any other user-related data
         db.execute(
             text("DELETE FROM user_settings WHERE user_id = :user_id"),
             {"user_id": user_id}
