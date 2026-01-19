@@ -631,8 +631,9 @@ async def login(request: LoginRequest):
         token = create_token(user.id)
         return {"token": token, "user": {"email": user.email, "name": user.full_name}}
 
+# Rename the endpoint
 @app.get("/api/auth/me")
-async def get_current_user(request: Request):
+async def me_endpoint(request: Request):
     """Get current user info"""
     user_id = get_current_user_id(request)
     
@@ -648,8 +649,10 @@ async def get_current_user(request: Request):
             "subscription_tier": user.subscription_tier or 'free',
             "family_member_limit": user.family_member_limit or 0
         }
+
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
+from jwt.exceptions import InvalidTokenError as JWTError
 
 security = HTTPBearer(auto_error=False)
 
@@ -666,6 +669,20 @@ def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials
         return {"sub": int(user_id)}
     except JWTError:
         return None
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
+    """Required JWT auth - raises error if not logged in"""
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return {"sub": int(user_id)}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 @app.delete("/api/auth/account")
 async def delete_account(
     current_user: dict = Depends(get_current_user),
