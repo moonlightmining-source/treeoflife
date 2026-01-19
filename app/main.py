@@ -739,6 +739,19 @@ async def delete_account(
             {"user_id": user_id}
         )
         
+        # 2.3: Delete client_view_tokens (references family_members)
+        db.execute(
+            text("""
+                DELETE FROM client_view_tokens 
+                WHERE family_member_id IN (
+                    SELECT id FROM family_members WHERE user_id = :user_id
+                )
+            """),
+            {"user_id": user_id}
+        )
+        
+        # 2.4: Delete family_members (now safe, no more references)
+        
               
         # 2.3: Delete family_members (now safe, no more references)
         db.execute(
