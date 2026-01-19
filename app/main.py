@@ -60,6 +60,7 @@ if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
+ALGORITHM = "HS256"
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 ANTHROPIC_PROJECT_ID = os.getenv('ANTHROPIC_PROJECT_ID')  # ← NEW: Add this to your Render environment variables
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
