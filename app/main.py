@@ -713,9 +713,11 @@ async def delete_account(
         except Exception as e:
             print(f"Error canceling subscription: {e}")        
       
-        # ✅ STEP 2: Delete in correct order (child -> parent)
+       # REPLACE your entire STEP 2 in delete_account with this:
+
+        # ✅ STEP 2: Delete in correct order based on actual schema
         
-        # 2.1: Delete compliance_logs first (references client_protocols)
+        # Level 1: Delete grandchildren (compliance_logs -> client_protocols -> family_members -> users)
         db.execute(
             text("""
                 DELETE FROM compliance_logs 
@@ -728,67 +730,105 @@ async def delete_account(
             {"user_id": user_id}
         )
         
-        # 2.2: Delete client_protocols (references family_members)
+        # Level 2: Delete children of family_members
         db.execute(
             text("""
                 DELETE FROM client_protocols 
-                WHERE client_id IN (
-                    SELECT id FROM family_members WHERE user_id = :user_id
-                )
+                WHERE client_id IN (SELECT id FROM family_members WHERE user_id = :user_id)
             """),
             {"user_id": user_id}
         )
         
-        # 2.3: Delete client_view_tokens (references family_members)
         db.execute(
             text("""
-                DELETE FROM client_view_tokens 
-                WHERE family_member_id IN (
-                    SELECT id FROM family_members WHERE user_id = :user_id
-                )
+                DELETE FROM ai_analyses 
+                WHERE client_id IN (SELECT id FROM family_members WHERE user_id = :user_id)
             """),
             {"user_id": user_id}
         )
         
-        # 2.4: Delete client_messages (references family_members)
         db.execute(
             text("""
                 DELETE FROM client_messages 
-                WHERE family_member_id IN (
-                    SELECT id FROM family_members WHERE user_id = :user_id
-                )
+                WHERE family_member_id IN (SELECT id FROM family_members WHERE user_id = :user_id)
             """),
             {"user_id": user_id}
         )
-                    
-                        
-        # 2.5: Delete family_members (now safe, no more references)   
+        
+        db.execute(
+            text("""
+                DELETE FROM client_view_tokens 
+                WHERE family_member_id IN (SELECT id FROM family_members WHERE user_id = :user_id)
+            """),
+            {"user_id": user_id}
+        )
+        
+        db.execute(
+            text("""
+                DELETE FROM health_profiles 
+                WHERE family_member_id IN (SELECT id FROM family_members WHERE user_id = :user_id)
+            """),
+            {"user_id": user_id}
+        )
+        
+        # Level 3: Delete children of custom_protocols
+        db.execute(
+            text("""
+                DELETE FROM client_records 
+                WHERE active_protocol_id IN (SELECT id FROM custom_protocols WHERE user_id = :user_id)
+            """),
+            {"user_id": user_id}
+        )
+        
+        # Level 4: Delete direct children of users
+        db.execute(
+            text("DELETE FROM client_messages WHERE practitioner_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        db.execute(
+            text("DELETE FROM client_records WHERE practitioner_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        db.execute(
+            text("DELETE FROM client_view_tokens WHERE practitioner_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
+        db.execute(
+            text("DELETE FROM custom_protocols WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
         db.execute(
             text("DELETE FROM family_members WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.6: Delete lab_results
+        db.execute(
+            text("DELETE FROM health_profiles WHERE user_id = :user_id"),
+            {"user_id": user_id}
+        )
+        
         db.execute(
             text("DELETE FROM lab_results WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.7: Delete health_metrics
         db.execute(
             text("DELETE FROM health_metrics WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
-        # 2.8: Delete health_profile
+        # Level 5: Delete conversations and messages
         db.execute(
-            text("DELETE FROM health_profiles WHERE user_id = :user_id"),
+            text("DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE user_id = :user_id)"),
             {"user_id": user_id}
         )
-                     
-        # 2.9: Delete any other user-related data
+        
         db.execute(
-            text("DELETE FROM user_settings WHERE user_id = :user_id"),
+            text("DELETE FROM conversations WHERE user_id = :user_id"),
             {"user_id": user_id}
         )
         
@@ -815,53 +855,6 @@ async def delete_account(
         )
     finally:
         db.close()
-# ADD THIS TEMPORARY DIAGNOSTIC ENDPOINT to main.py
-# (Remove after we figure out the tables)
-
-@app.get("/api/debug/tables")
-async def debug_tables(db: Session = Depends(get_db)):
-    """Check what tables exist and their foreign keys"""
-    try:
-        # Get all tables
-        result = db.execute(text("""
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public'
-            ORDER BY table_name
-        """))
-        tables = [row[0] for row in result]
-        
-        # Get foreign key constraints
-        fk_result = db.execute(text("""
-            SELECT 
-                tc.table_name, 
-                kcu.column_name,
-                ccu.table_name AS foreign_table_name,
-                ccu.column_name AS foreign_column_name
-            FROM information_schema.table_constraints AS tc 
-            JOIN information_schema.key_column_usage AS kcu
-                ON tc.constraint_name = kcu.constraint_name
-            JOIN information_schema.constraint_column_usage AS ccu
-                ON ccu.constraint_name = tc.constraint_name
-            WHERE tc.constraint_type = 'FOREIGN KEY'
-            ORDER BY tc.table_name
-        """))
-        
-        foreign_keys = []
-        for row in fk_result:
-            foreign_keys.append({
-                "table": row[0],
-                "column": row[1],
-                "references_table": row[2],
-                "references_column": row[3]
-            })
-        
-        return {
-            "tables": tables,
-            "foreign_keys": foreign_keys
-        }
-    except Exception as e:
-        return {"error": str(e)}
 
 # ==================== CHAT ENDPOINTS ====================
 
