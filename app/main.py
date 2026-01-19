@@ -667,7 +667,7 @@ def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials
         user_id: str = payload.get("sub")
         if user_id is None:
             return None
-        return {"sub": int(user_id)}
+        return {"sub": user_id}
     except JWTError:
         return None
 
@@ -681,7 +681,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         user_id: str = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid token")
-        return {"sub": int(user_id)}
+        return {"sub": user_id}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 @app.delete("/api/auth/account")
