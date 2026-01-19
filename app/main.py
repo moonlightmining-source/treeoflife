@@ -693,7 +693,7 @@ async def delete_account(
     Order matters due to foreign key constraints.
     """
     try:
-        user_id = current_user['user_id']
+        user_id = current_user['sub']
         
         # ✅ STEP 1: Cancel Stripe subscription first
         try:
