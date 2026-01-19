@@ -786,11 +786,7 @@ async def delete_account(
             {"user_id": user_id}
         )
         
-        # 2.9: Delete chat conversations and messages
-        db.execute(
-            text("DELETE FROM chat_messages WHERE conversation_id IN (SELECT id FROM chat_conversations WHERE user_id = :user_id)"),
-            {"user_id": user_id}
-        )
+      # 2.9: Delete chat conversations
         db.execute(
             text("DELETE FROM chat_conversations WHERE user_id = :user_id"),
             {"user_id": user_id}
