@@ -1269,6 +1269,19 @@ async def create_checkout(request: Request, current_user: dict = Depends(get_cur
                 customer_id = user.stripe_customer_id
                 user_id_str = str(user.id)
     
+    # Cancel any existing active subscriptions before creating new one
+    if customer_id:
+        try:
+            existing_subs = stripe.Subscription.list(
+                customer=customer_id,
+                status='active',
+                limit=10
+            )
+            for sub in existing_subs.data:
+                stripe.Subscription.modify(sub.id, cancel_at_period_end=True)
+        except Exception as e:
+            print(f"⚠️ Error canceling existing subscriptions: {e}")
+    
     # Create checkout session
     try:
         session_params = {
@@ -1323,7 +1336,18 @@ async def stripe_webhook(request: Request):
                         user.family_member_limit = 999
                     
                     db.commit()
-    
+    elif event['type'] == 'customer.subscription.deleted':
+        session = event['data']['object']
+        customer_id = session.get('customer')
+        
+        if customer_id:
+            with get_db_context() as db:
+                user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+                if user:
+                    user.subscription_tier = 'free'
+                    user.family_member_limit = 0
+                    user.stripe_subscription_id = None
+                    db.commit()
     return {"status": "success"}
 
 @app.post("/api/subscription/portal")
