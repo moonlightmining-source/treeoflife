@@ -705,7 +705,8 @@ async def get_client_compliance_details(member_id: int, current_user: dict = Dep
 # ==================== TWO-WAY MESSAGING ENDPOINTS ====================
 @router.get("/client-messages/{member_id}/count")
 async def get_unread_message_count(
-    member_id: int, 
+    member_id: int,
+    request: Request,
     current_user: dict = Depends(get_current_user)
 ):
     """Get count of unread messages from a client"""
