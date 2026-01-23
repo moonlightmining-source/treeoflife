@@ -794,7 +794,33 @@ async def get_message_thread(member_id: int, current_user: dict = Depends(get_cu
                 "created_at": row[5].isoformat() if row[5] else None
             } for row in messages]
         }
+@router.post("/client-messages/mark-read/{member_id}")
+async def mark_client_messages_read(member_id: int, current_user: dict = Depends(get_current_user)):
+    """Mark all client messages as read when practitioner views them"""
+    
+    with engine.connect() as conn:
+        # Verify client belongs to this practitioner
+        member = conn.execute(text("""
+            SELECT id FROM family_members
+            WHERE id = :member_id AND user_id = :user_id
+        """), {'member_id': member_id, 'user_id': current_user['id']}).fetchone()
         
+        if not member:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Mark all client messages as read
+        conn.execute(text("""
+            UPDATE client_messages
+            SET is_read = true
+            WHERE family_member_id = :member_id 
+              AND sender_type = 'client'
+              AND is_read = false
+        """), {'member_id': member_id})
+        
+        conn.commit()
+        
+        return {"success": True, "marked_read": True}
+
 @router.post("/client-messages/thread/{member_id}/reply")
 async def send_practitioner_reply(
     member_id: int, 
