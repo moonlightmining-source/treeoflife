@@ -742,7 +742,10 @@ async def get_message_thread(member_id: int, current_user: dict = Depends(get_cu
         }
 
 @router.get("/client-messages/{member_id}/count")
-async def get_unread_message_count(member_id: int, current_user: dict = Depends(get_current_user)):
+async def get_unread_message_count(
+    member_id: int, 
+    current_user: dict = Depends(get_current_user)
+):
     """Get count of unread messages from a client"""
     
     with engine.connect() as conn:
