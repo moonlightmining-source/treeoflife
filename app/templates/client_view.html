@@ -1276,9 +1276,138 @@
             window.print();
         }
 
+        // ==================== TWO-WAY MESSAGING ====================
+        
+        let messageCheckInterval = null;
+        
+        async function loadMessages() {
+            try {
+                const response = await fetch(`/api/client-view/${token}/messages`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    displayMessages(data.messages, data.practitioner_name);
+                    document.getElementById('messagesSection').style.display = 'block';
+                } else {
+                    console.error('Failed to load messages');
+                }
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+        
+        function displayMessages(messages, practitionerName) {
+            const thread = document.getElementById('messageThread');
+            
+            if (!messages || messages.length === 0) {
+                thread.innerHTML = `
+                    <p style="text-align: center; color: var(--amber-medium); padding: 2rem;">
+                        No messages yet. Send a message to your practitioner below.
+                    </p>
+                `;
+                return;
+            }
+            
+            thread.innerHTML = messages.map(msg => {
+                const isFromClient = msg.sender_type === 'client';
+                const senderName = isFromClient ? 'You' : practitionerName;
+                const messageClass = isFromClient ? 'from-client' : 'from-practitioner';
+                const timestamp = new Date(msg.created_at).toLocaleString();
+                
+                let imageHTML = '';
+                if (msg.image_base64) {
+                    imageHTML = `
+                        <img src="${msg.image_base64}" 
+                             style="max-width: 100%; border-radius: 8px; margin-top: 0.5rem;"
+                             alt="Attachment">
+                    `;
+                }
+                
+                return `
+                    <div class="message-item ${messageClass}">
+                        <div class="message-sender">${senderName}</div>
+                        <div class="message-content">${escapeHtml(msg.message_text)}</div>
+                        ${imageHTML}
+                        <div class="message-timestamp">${timestamp}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Scroll to bottom
+            thread.scrollTop = thread.scrollHeight;
+        }
+        
+        async function sendClientMessage() {
+            const input = document.getElementById('clientMessageInput');
+            const messageText = input.value.trim();
+            
+            if (!messageText) {
+                alert('Please enter a message');
+                return;
+            }
+            
+            const sendBtn = document.getElementById('sendClientBtn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = '📤 Sending...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('message', messageText);
+                
+                const response = await fetch(`/api/client-view/${token}/send-message`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    input.value = '';
+                    await loadMessages();
+                    showSuccess('✓ Message sent to your practitioner!');
+                } else {
+                    const error = await response.json();
+                    alert(`Failed to send: ${error.detail || 'Unknown error'}`);
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('Failed to send message. Please try again.');
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.textContent = '📤 Send Message';
+            }
+        }
+        
+        function startMessagePolling() {
+            // Check for new messages every 15 seconds
+            messageCheckInterval = setInterval(async () => {
+                await loadMessages();
+            }, 15000);
+        }
+        
+        function showSuccess(message) {
+            const msgDiv = document.getElementById('save-message');
+            if (msgDiv) {
+                msgDiv.innerHTML = `
+                    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: center;">
+                        ${message}
+                    </div>
+                `;
+                setTimeout(() => { msgDiv.innerHTML = ''; }, 3000);
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Load everything on page load
         loadProtocol();
         loadReplies();
+        loadMessages();
+        startMessagePolling();
         setInterval(loadReplies, 30000);
     </script>
+
 </body>
 </html>
