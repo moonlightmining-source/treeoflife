@@ -741,7 +741,36 @@ async def get_message_thread(member_id: int, current_user: dict = Depends(get_cu
             } for row in messages]
         }
 
-
+@router.get("/client-messages/{member_id}/count")
+async def get_unread_message_count(member_id: int, current_user: dict = Depends(get_current_user)):
+    """Get count of unread messages from a client"""
+    
+    with engine.connect() as conn:
+        # Verify client belongs to this practitioner
+        member = conn.execute(text("""
+            SELECT id FROM family_members
+            WHERE id = :member_id AND user_id = :user_id
+        """), {'member_id': member_id, 'user_id': current_user['id']}).fetchone()
+        
+        if not member:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Count unread messages from client
+        result = conn.execute(text("""
+            SELECT COUNT(*) 
+            FROM client_messages
+            WHERE family_member_id = :member_id 
+              AND sender_type = 'client'
+              AND is_read = false
+        """), {'member_id': member_id}).fetchone()
+        
+        unread_count = result[0] if result else 0
+        
+        return {
+            "client_id": member_id,
+            "unread_count": unread_count
+        }
+        
 @router.post("/client-messages/thread/{member_id}/reply")
 async def send_practitioner_reply(
     member_id: int, 
