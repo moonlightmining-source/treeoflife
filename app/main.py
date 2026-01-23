@@ -454,7 +454,50 @@ def run_migration():
                 print("  ✅ client_messages index created")
             except Exception as e:
                 print(f"  ⚠️ index creation: {e}")
+            # ==================== TWO-WAY MESSAGING MIGRATION ====================
             
+            print("💬 Adding two-way messaging support...")
+            try:
+                # Add sender_type column for tracking message sender
+                conn.execute(text("""
+                    ALTER TABLE client_messages 
+                    ADD COLUMN IF NOT EXISTS sender_type VARCHAR(20) DEFAULT 'client'
+                """))
+                conn.commit()
+                print("  ✅ sender_type column added")
+                
+                # Update existing messages to be from 'client'
+                conn.execute(text("""
+                    UPDATE client_messages 
+                    SET sender_type = 'client' 
+                    WHERE sender_type IS NULL
+                """))
+                conn.commit()
+                print("  ✅ Existing messages marked as 'client'")
+                
+                # Make sender_type NOT NULL
+                try:
+                    conn.execute(text("""
+                        ALTER TABLE client_messages 
+                        ALTER COLUMN sender_type SET NOT NULL
+                    """))
+                    conn.commit()
+                    print("  ✅ sender_type set to NOT NULL")
+                except Exception as e:
+                    print(f"  ℹ️ sender_type constraint: {e}")
+                
+                # Add index for faster thread retrieval
+                conn.execute(text("""
+                    CREATE INDEX IF NOT EXISTS idx_client_messages_thread 
+                    ON client_messages(family_member_id, created_at DESC)
+                """))
+                conn.commit()
+                print("  ✅ Thread index created")
+                
+            except Exception as e:
+                print(f"  ⚠️ Two-way messaging migration: {e}")
+            
+            print("✅ Two-way messaging ready!")
             print("✅ Client portal tables ready!")
             
             # ==================== PROTOCOL CONTENT FIELDS ====================
