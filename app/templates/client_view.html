@@ -761,7 +761,31 @@
             
             <button class="question-btn" onclick="openQuestionModal()">💬 Ask My Care Provider a Question</button>
 
-            <button class="print-btn" onclick="printProtocol()">🖨️ Print Protocol</button>
+             <button class="print-btn" onclick="printProtocol()">🖨️ Print Protocol</button>
+            
+            <!-- MESSAGING SECTION -->
+            <div class="messages-section" style="display: none;" id="messagesSection">
+                <h2 style="color: var(--peach-gold); margin-bottom: 1.5rem;">💬 Messages</h2>
+                
+                <div id="messageThread" class="message-thread">
+                    <p style="text-align: center; color: var(--amber-medium); padding: 2rem;">
+                        Loading messages...
+                    </p>
+                </div>
+                
+                <div>
+                    <textarea 
+                        id="clientMessageInput" 
+                        class="client-message-input" 
+                        placeholder="Type your message to your practitioner..."
+                        onkeydown="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendClientMessage(); }"
+                    ></textarea>
+                    
+                    <button class="action-btn" onclick="sendClientMessage()" id="sendClientBtn">
+                        📤 Send Message
+                    </button>
+                </div>
+            </div>
             
             <div class="replies-section" id="replies-section" style="display:none;">
                 <h3 style="color: var(--amber-light); margin-bottom: 15px;">Recent Replies from Your Practitioner:</h3>
