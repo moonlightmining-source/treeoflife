@@ -686,6 +686,7 @@ async def login(request: LoginRequest):
         
         token = create_token(user.id)
         return {"token": token, "user": {"email": user.email, "name": user.full_name}}
+        
 @app.post("/api/auth/request-password-reset")
 async def request_password_reset(data: dict):
     """Request password reset - sends email with reset link"""
@@ -695,46 +696,31 @@ async def request_password_reset(data: dict):
         raise HTTPException(status_code=400, detail="Email required")
     
     with get_db_context() as db:
-        # Check if user exists
-        user = db.execute(text("""
-            SELECT id, email, full_name FROM users WHERE email = :email
-        """), {'email': email}).fetchone()
+        user = db.execute(text(
+            "SELECT id, email, full_name FROM users WHERE email = :email"
+        ), {'email': email}).fetchone()
         
         if user:
-            # Generate secure random token
             token = secrets.token_urlsafe(32)
             expires_at = datetime.utcnow() + timedelta(hours=1)
             
-            # Invalidate old tokens for this user
-            db.execute(text("""
-                UPDATE password_reset_tokens 
-                SET used = true 
-                WHERE user_id = :user_id AND used = false
-            """), {'user_id': str(user[0])})
+            db.execute(text(
+                "UPDATE password_reset_tokens SET used = true WHERE user_id = :user_id AND used = false"
+            ), {'user_id': str(user[0])})
             
-            # Create new reset token
-            db.execute(text("""
-                INSERT INTO password_reset_tokens (user_id, token, expires_at)
-                VALUES (:user_id, :token, :expires_at)
-            """), {
+            db.execute(text(
+                "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (:user_id, :token, :expires_at)"
+            ), {
                 'user_id': str(user[0]),
                 'token': token,
                 'expires_at': expires_at
             })
             db.commit()
             
-            # Create reset link
             reset_link = f"https://www.treeoflifeai.com/reset-password.html?token={token}"
-            
-            # Log reset link (TESTING ONLY)
-            print(f"🔐 Password reset link for {email}:")
-            print(f"   {reset_link}")
-            print(f"   Expires: {expires_at}")
+            print(f"🔐 Password reset link for {email}: {reset_link}")
     
-    return {
-        "success": True,
-        "message": "If that email exists, you'll receive a password reset link shortly."
-    }
+    return {"success": True, "message": "If that email exists, you'll receive a password reset link shortly."}
 
 
 @app.post("/api/auth/reset-password")
@@ -750,49 +736,33 @@ async def reset_password(data: dict):
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     
     with get_db_context() as db:
-        # Verify token
-        reset_token = db.execute(text("""
-            SELECT user_id, expires_at, used 
-            FROM password_reset_tokens
-            WHERE token = :token
-        """), {'token': token}).fetchone()
+        reset_token = db.execute(text(
+            "SELECT user_id, expires_at, used FROM password_reset_tokens WHERE token = :token"
+        ), {'token': token}).fetchone()
         
         if not reset_token:
             raise HTTPException(status_code=400, detail="Invalid or expired reset link")
         
-        if reset_token[2]:  # used
+        if reset_token[2]:
             raise HTTPException(status_code=400, detail="This reset link has already been used")
         
-        if datetime.utcnow() > reset_token[1]:  # expires_at
+        if datetime.utcnow() > reset_token[1]:
             raise HTTPException(status_code=400, detail="This reset link has expired")
         
         user_id = reset_token[0]
-        
-        # Hash new password
         hashed_password = hash_password(new_password)
         
-        # Update user password
-        db.execute(text("""
-            UPDATE users 
-            SET hashed_password = :hashed_password 
-            WHERE id = :user_id
-        """), {
-            'hashed_password': hashed_password,
-            'user_id': str(user_id)
-        })
+        db.execute(text(
+            "UPDATE users SET hashed_password = :hashed_password WHERE id = :user_id"
+        ), {'hashed_password': hashed_password, 'user_id': str(user_id)})
         
-        # Mark token as used
-        db.execute(text("""
-            UPDATE password_reset_tokens 
-            SET used = true 
-            WHERE token = :token
-        """), {'token': token})
+        db.execute(text(
+            "UPDATE password_reset_tokens SET used = true WHERE token = :token"
+        ), {'token': token})
         
         db.commit()
     
-    return {
-        "success": True,
-        "message": "Password successfully reset. You
+    return {"success": True, "message": "Password successfully reset. You can now log in with your new password."}
     
 # Rename the endpoint
 @app.get("/api/auth/me")
