@@ -724,13 +724,13 @@ async def request_password_reset(data: dict):
             })
             db.commit()
             
-  reset_link = f"https://www.treeoflifeai.com/reset-password.html?token={token}"
+            reset_link = f"https://www.treeoflifeai.com/reset-password.html?token={token}"
             
             # Send email
             try:
                 resend.Emails.send({
                     "from": "noreply@treeoflifeai.com",
-                    "to": email,
+                    "to": email, 
                     "subject": "Reset Your Tree of Life AI Password",
                     "html": f"""
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
