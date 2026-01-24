@@ -675,7 +675,6 @@ async def login(request: LoginRequest):
         if not user:
             raise HTTPException(status_code=401, detail="Invalid credentials")
         
-        # Access hashed_password INSIDE the session
         hashed_password = user.hashed_password
         user_id = user.id
         user_email = user.email
@@ -692,16 +691,6 @@ async def login(request: LoginRequest):
     
     token = create_token(user_id)
     return {"token": token, "user": {"email": user_email, "name": user_name}}
-    except (ValueError, Exception) as e:
-        # Corrupted/invalid password hash in database
-        print(f"❌ Password verification failed for {request.email}: {e}")
-        raise HTTPException(status_code=401, detail="Invalid credentials - password hash corrupted")
-    
-    if not password_valid:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-        
-        token = create_token(user.id)
-        return {"token": token, "user": {"email": user.email, "name": user.full_name}}
         
 @app.post("/api/auth/request-password-reset")
 async def request_password_reset(data: dict):
