@@ -2912,6 +2912,43 @@ async def admin_deactivate_subscription(request: Request):
         print(f"❌ Admin deactivation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/api/admin/delete-user")
+async def delete_user(data: dict):
+    """Permanently delete a user and all their data"""
+    admin_password = data.get('admin_password')
+    email = data.get('email', '').strip().lower()
+    
+    # Verify admin password
+    if admin_password != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Invalid admin password")
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    
+    with get_db_context() as db:
+        # Check if user exists
+        user = db.execute(text("""
+            SELECT id, email, subscription_tier FROM users WHERE email = :email
+        """), {'email': email}).fetchone()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user_id = str(user[0])
+        
+        # Delete user (CASCADE will handle related records)
+        result = db.execute(text("""
+            DELETE FROM users WHERE id = :user_id
+        """), {'user_id': user_id})
+        
+        db.commit()
+        
+        print(f"🗑️ DELETED USER: {email} (ID: {user_id})")
+        
+        return {
+            "success": True,
+            "message": f"User {email} permanently deleted"
+        }
 
 @app.get("/api/admin/list-users")
 async def admin_list_users(request: Request, admin_password: str):
