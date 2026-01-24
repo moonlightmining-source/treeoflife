@@ -1,3 +1,7 @@
+import resend
+import os
+
+resend.api_key = os.environ.get('RESEND_API_KEY')
 import secrets
 from datetime import datetime, timedelta
 from fastapi.staticfiles import StaticFiles
