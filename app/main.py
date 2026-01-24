@@ -2919,7 +2919,7 @@ async def delete_user(data: dict):
     email = data.get('email', '').strip().lower()
     
     # Verify admin password
-    if admin_password != ADMIN_PASSWORD:
+    if admin_password != SUBSCRIPTION_ADMIN_PASSWORD:  # ← CHANGED
         raise HTTPException(status_code=403, detail="Invalid admin password")
     
     if not email:
@@ -2937,7 +2937,7 @@ async def delete_user(data: dict):
         user_id = str(user[0])
         
         # Delete user (CASCADE will handle related records)
-        result = db.execute(text("""
+        db.execute(text("""
             DELETE FROM users WHERE id = :user_id
         """), {'user_id': user_id})
         
@@ -2949,6 +2949,7 @@ async def delete_user(data: dict):
             "success": True,
             "message": f"User {email} permanently deleted"
         }
+
 
 @app.get("/api/admin/list-users")
 async def admin_list_users(request: Request, admin_password: str):
@@ -2962,9 +2963,7 @@ async def admin_list_users(request: Request, admin_password: str):
             users = db.query(User).all()
             
             user_list = []
-            for user in users:
-                           user_list = []
-            for user in users:
+            for user in users:  # ← FIXED: removed duplicate line
                 user_list.append({
                     "email": user.email,
                     "tier": user.subscription_tier or 'free',
@@ -2984,7 +2983,6 @@ async def admin_list_users(request: Request, admin_password: str):
     except Exception as e:
         print(f"❌ Admin list error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
 # ==================== HEALTH CHECK ====================
 
 @app.get("/")
