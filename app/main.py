@@ -684,7 +684,114 @@ async def login(request: LoginRequest):
         
         token = create_token(user.id)
         return {"token": token, "user": {"email": user.email, "name": user.full_name}}
+@app.post("/api/auth/request-password-reset")
+async def request_password_reset(data: dict):
+    """Request password reset - sends email with reset link"""
+    email = data.get('email', '').strip().lower()
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    
+    with get_db_context() as db:
+        # Check if user exists
+        user = db.execute(text("""
+            SELECT id, email, full_name FROM users WHERE email = :email
+        """), {'email': email}).fetchone()
+        
+        if user:
+            # Generate secure random token
+            token = secrets.token_urlsafe(32)
+            expires_at = datetime.utcnow() + timedelta(hours=1)
+            
+            # Invalidate old tokens for this user
+            db.execute(text("""
+                UPDATE password_reset_tokens 
+                SET used = true 
+                WHERE user_id = :user_id AND used = false
+            """), {'user_id': str(user[0])})
+            
+            # Create new reset token
+            db.execute(text("""
+                INSERT INTO password_reset_tokens (user_id, token, expires_at)
+                VALUES (:user_id, :token, :expires_at)
+            """), {
+                'user_id': str(user[0]),
+                'token': token,
+                'expires_at': expires_at
+            })
+            db.commit()
+            
+            # Create reset link
+            reset_link = f"https://www.treeoflifeai.com/reset-password.html?token={token}"
+            
+            # Log reset link (TESTING ONLY)
+            print(f"🔐 Password reset link for {email}:")
+            print(f"   {reset_link}")
+            print(f"   Expires: {expires_at}")
+    
+    return {
+        "success": True,
+        "message": "If that email exists, you'll receive a password reset link shortly."
+    }
 
+
+@app.post("/api/auth/reset-password")
+async def reset_password(data: dict):
+    """Reset password using token"""
+    token = data.get('token', '').strip()
+    new_password = data.get('new_password', '').strip()
+    
+    if not token or not new_password:
+        raise HTTPException(status_code=400, detail="Token and new password required")
+    
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    
+    with get_db_context() as db:
+        # Verify token
+        reset_token = db.execute(text("""
+            SELECT user_id, expires_at, used 
+            FROM password_reset_tokens
+            WHERE token = :token
+        """), {'token': token}).fetchone()
+        
+        if not reset_token:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+        
+        if reset_token[2]:  # used
+            raise HTTPException(status_code=400, detail="This reset link has already been used")
+        
+        if datetime.utcnow() > reset_token[1]:  # expires_at
+            raise HTTPException(status_code=400, detail="This reset link has expired")
+        
+        user_id = reset_token[0]
+        
+        # Hash new password
+        hashed_password = hash_password(new_password)
+        
+        # Update user password
+        db.execute(text("""
+            UPDATE users 
+            SET hashed_password = :hashed_password 
+            WHERE id = :user_id
+        """), {
+            'hashed_password': hashed_password,
+            'user_id': str(user_id)
+        })
+        
+        # Mark token as used
+        db.execute(text("""
+            UPDATE password_reset_tokens 
+            SET used = true 
+            WHERE token = :token
+        """), {'token': token})
+        
+        db.commit()
+    
+    return {
+        "success": True,
+        "message": "Password successfully reset. You
+    
 # Rename the endpoint
 @app.get("/api/auth/me")
 async def me_endpoint(request: Request):
