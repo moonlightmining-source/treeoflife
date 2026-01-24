@@ -671,11 +671,27 @@ async def register(request: SignupRequest):
 async def login(request: LoginRequest):
     with get_db_context() as db:
         user = db.query(User).filter(User.email == request.email).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+        # Access hashed_password INSIDE the session
+        hashed_password = user.hashed_password
+        user_id = user.id
+        user_email = user.email
+        user_name = user.full_name
     
     try:
-        password_valid = verify_password(request.password, user.hashed_password)
+        password_valid = verify_password(request.password, hashed_password)
+    except (ValueError, Exception) as e:
+        print(f"❌ Password verification failed for {request.email}: {e}")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if not password_valid:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    token = create_token(user_id)
+    return {"token": token, "user": {"email": user_email, "name": user_name}}
     except (ValueError, Exception) as e:
         # Corrupted/invalid password hash in database
         print(f"❌ Password verification failed for {request.email}: {e}")
