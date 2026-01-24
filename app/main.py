@@ -724,8 +724,27 @@ async def request_password_reset(data: dict):
             })
             db.commit()
             
-            reset_link = f"https://www.treeoflifeai.com/reset-password.html?token={token}"
-            print(f"🔐 Password reset link for {email}: {reset_link}")
+  reset_link = f"https://www.treeoflifeai.com/reset-password.html?token={token}"
+            
+            # Send email
+            try:
+                resend.Emails.send({
+                    "from": "noreply@treeoflifeai.com",
+                    "to": email,
+                    "subject": "Reset Your Tree of Life AI Password",
+                    "html": f"""
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #D4A574;">Reset Your Password</h2>
+                        <p>Click the link below to reset your password:</p>
+                        <a href="{reset_link}" style="display: inline-block; padding: 12px 24px; background: #B8860B; color: white; text-decoration: none; border-radius: 8px; margin: 20px 0;">Reset Password</a>
+                        <p style="color: #666; font-size: 14px;">This link expires in 1 hour.</p>
+                        <p style="color: #999; font-size: 12px;">If you didn't request this, ignore this email.</p>
+                    </div>
+                    """
+                })
+                print(f"✅ Password reset email sent to {email}")
+            except Exception as e:
+                print(f"❌ Email send failed: {e}")
     
     return {"success": True, "message": "If that email exists, you'll receive a password reset link shortly."}
 
