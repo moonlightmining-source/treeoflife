@@ -1105,14 +1105,13 @@ async def submit_client_compliance(token: str, data: dict):
         conn.execute(text("""
             INSERT INTO client_messages 
             (family_member_id, practitioner_id, sender_type, message_text, 
-             image_base64, compliance_data, compliance_log_id, is_read, created_at)
-            VALUES (:member_id, :prac_id, 'client', :message, :image, :data, :log_id, false, CURRENT_TIMESTAMP)
+             image_base64, compliance_log_id, is_read, created_at)
+            VALUES (:member_id, :prac_id, 'client', :message, :image, :log_id, false, CURRENT_TIMESTAMP)
         """), {
             'member_id': family_member_id,
             'prac_id': str(practitioner_id),
             'message': notification_text,
             'image': image_base64,
-            'data': json.dumps(compliance_data),
             'log_id': log_id
         })
         
