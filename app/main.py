@@ -2665,7 +2665,7 @@ async def log_compliance(request: Request, compliance: ComplianceCreate):
 
 @app.get("/api/compliance/{client_protocol_id}")
 async def get_compliance(request: Request, client_protocol_id: int):
-    """Get compliance logs for an assignment"""
+    """Get compliance logs for an assignment - UNIFIED system"""
     user_id = get_current_user_id(request)
     
     with get_db_context() as db:
@@ -2677,17 +2677,30 @@ async def get_compliance(request: Request, client_protocol_id: int):
         if not assignment:
             raise HTTPException(status_code=404, detail="Assignment not found")
         
-        logs = db.query(ComplianceLog).filter(
-            ComplianceLog.client_protocol_id == client_protocol_id
-        ).order_by(ComplianceLog.week_number).all()
+        # ✅ Get ALL logs (both client and practitioner submissions)
+        logs = db.execute(text("""
+            SELECT 
+                week_number,
+                compliance_score,
+                notes,
+                compliance_data,
+                image_base64,
+                submitted_by,
+                logged_at
+            FROM compliance_logs
+            WHERE client_protocol_id = :protocol_id
+            ORDER BY logged_at DESC
+        """), {'protocol_id': client_protocol_id}).fetchall()
         
         return {"logs": [{
-            "week_number": log.week_number,
-            "compliance_score": log.compliance_score,
-            "notes": log.notes,
-            "logged_at": log.logged_at.isoformat()
+            "week_number": log[0],
+            "compliance_score": log[1],
+            "notes": log[2],
+            "compliance_data": log[3],
+            "image_base64": log[4],
+            "submitted_by": log[5] or 'practitioner',
+            "logged_at": log[6].isoformat() if log[6] else None
         } for log in logs]}
-
 @app.get("/api/analytics/dashboard")
 async def get_analytics(request: Request):
     """Get analytics data for dashboard"""
