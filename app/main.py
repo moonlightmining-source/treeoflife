@@ -2630,7 +2630,7 @@ async def remove_client_protocol(client_id: int, request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 @app.post("/api/compliance")
 async def log_compliance(request: Request, compliance: ComplianceCreate):
-    """Log client compliance"""
+    """Log client compliance - UNIFIED system with submitted_by tracking"""
     user_id = get_current_user_id(request)
     
     with get_db_context() as db:
@@ -2642,17 +2642,22 @@ async def log_compliance(request: Request, compliance: ComplianceCreate):
         if not assignment:
             raise HTTPException(status_code=404, detail="Assignment not found")
         
-        log = ComplianceLog(
-            client_protocol_id=compliance.client_protocol_id,
-            week_number=compliance.week_number,
-            compliance_score=compliance.compliance_score,
-            notes=compliance.notes
-        )
-        db.add(log)
+        # ✅ UNIFIED: Use SQL to include submitted_by column
+        db.execute(text("""
+            INSERT INTO compliance_logs 
+            (client_protocol_id, week_number, compliance_score, notes, submitted_by, logged_at)
+            VALUES (:protocol_id, :week, :score, :notes, 'practitioner', CURRENT_TIMESTAMP)
+        """), {
+            'protocol_id': compliance.client_protocol_id,
+            'week': compliance.week_number,
+            'score': compliance.compliance_score,
+            'notes': compliance.notes
+        })
         
+        # Update protocol progress
+        protocol = db.query(Protocol).filter(Protocol.id == assignment.protocol_id).first()
         assignment.current_week = compliance.week_number
-        assignment.completion_percentage = min(100, (compliance.week_number /
-            db.query(Protocol).filter(Protocol.id == assignment.protocol_id).first().duration_weeks) * 100)
+        assignment.completion_percentage = min(100, int((compliance.week_number / protocol.duration_weeks) * 100))
         
         db.commit()
         
