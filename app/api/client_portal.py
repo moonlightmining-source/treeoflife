@@ -560,7 +560,9 @@ async def get_client_compliance_details(member_id: int, current_user: dict = Dep
             # Get active protocol
             protocol = conn.execute(text("""
                 SELECT cp.id, cp.current_week, p.name as protocol_name, 
-                       p.duration_weeks as total_weeks
+                       p.duration_weeks as total_weeks,
+                       p.supplements, p.nutrition, p.exercises, 
+                       p.lifestyle_changes, p.weekly_notes
                 FROM client_protocols cp
                 JOIN protocols p ON cp.protocol_id = p.id
                 WHERE cp.client_id = :client_id AND cp.status = 'active'
@@ -580,7 +582,14 @@ async def get_client_compliance_details(member_id: int, current_user: dict = Dep
             protocol_name = protocol[2]
             total_weeks = protocol[3]
             
-            # ✅ UNIFIED: Get most recent compliance log (from EITHER source)
+            # Get protocol content for building item lists
+            supplements = protocol[4]
+            nutrition = protocol[5]
+            exercises = protocol[6]
+            lifestyle = protocol[7]
+            weekly_notes = protocol[8]
+            
+            # Get most recent compliance log
             compliance_log = conn.execute(text("""
                 SELECT 
                     week_number,
@@ -625,7 +634,55 @@ async def get_client_compliance_details(member_id: int, current_user: dict = Dep
                 except Exception as e:
                     print(f"⚠️ Error parsing compliance_data: {e}")
             
-            # Build category breakdown and item lists
+            # Build full item list from protocol to match with compliance_data
+            all_items = []
+            
+            # Helper to add items
+            def add_items(data, category_prefix):
+                if not data:
+                    return
+                if isinstance(data, str):
+                    try:
+                        data = json.loads(data)
+                    except:
+                        return
+                
+                if isinstance(data, list):
+                    for idx, item in enumerate(data):
+                        item_id = f"{category_prefix}-{idx}"
+                        if isinstance(item, dict):
+                            text = item.get('name', str(item))
+                        else:
+                            text = str(item)
+                        all_items.append({'id': item_id, 'text': text})
+                elif isinstance(data, dict):
+                    for idx, (key, value) in enumerate(data.items()):
+                        item_id = f"{category_prefix}-{idx}"
+                        text = f"{key}: {value}" if value else key
+                        all_items.append({'id': item_id, 'text': text})
+            
+            # Add all protocol items
+            add_items(supplements, 'supplements')
+            add_items(nutrition, 'nutrition')
+            add_items(exercises, 'exercises')
+            add_items(lifestyle, 'lifestyle')
+            add_items(weekly_notes, 'timeline')
+            
+            # Split into completed/incomplete based on compliance_data
+            completed_items = []
+            incomplete_items = []
+            
+            for item in all_items:
+                # Check if this item was marked complete in compliance_data
+                if compliance_data.get(item['id']) == True:
+                    completed_items.append(item)
+                elif compliance_data.get(item['id']) == False:
+                    incomplete_items.append(item)
+                # If not in compliance_data, assume incomplete
+                elif item['id'] not in compliance_data:
+                    incomplete_items.append(item)
+            
+            # Build category breakdown
             category_breakdown = {
                 'supplements': {'completed': 0, 'total': 0, 'percentage': 0},
                 'nutrition': {'completed': 0, 'total': 0, 'percentage': 0},
@@ -634,36 +691,12 @@ async def get_client_compliance_details(member_id: int, current_user: dict = Dep
                 'timeline': {'completed': 0, 'total': 0, 'percentage': 0}
             }
             
-            completed_items = []
-            incomplete_items = []
-            
-            # Process compliance data items
-            for key, value in compliance_data.items():
-                # Determine category from key
-                category = 'lifestyle'  # default
-                if 'supplement' in key.lower() or 'pill' in key.lower():
-                    category = 'supplements'
-                elif 'food' in key.lower() or 'diet' in key.lower() or 'meal' in key.lower() or 'nutrition' in key.lower():
-                    category = 'nutrition'
-                elif 'exercise' in key.lower() or 'workout' in key.lower():
-                    category = 'exercises'
-                elif 'timeline' in key.lower():
-                    category = 'timeline'
-                
-                # Clean up key for display
-                display_text = key.replace('_', ' ').replace('-', ' ').title()
-                # Remove category prefix if it's in the text
-                for cat in ['Supplements', 'Nutrition', 'Exercises', 'Lifestyle', 'Timeline']:
-                    if display_text.startswith(cat):
-                        display_text = display_text[len(cat):].strip()
-                
-                # Track in category
-                category_breakdown[category]['total'] += 1
-                if value:
-                    category_breakdown[category]['completed'] += 1
-                    completed_items.append({'text': display_text})
-                else:
-                    incomplete_items.append({'text': display_text})
+            for item_id, is_complete in compliance_data.items():
+                category = item_id.split('-')[0] if '-' in item_id else 'lifestyle'
+                if category in category_breakdown:
+                    category_breakdown[category]['total'] += 1
+                    if is_complete:
+                        category_breakdown[category]['completed'] += 1
             
             # Calculate percentages
             for cat_data in category_breakdown.values():
@@ -702,7 +735,6 @@ async def get_client_compliance_details(member_id: int, current_user: dict = Dep
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error loading compliance: {str(e)}")
-
 # ==================== TWO-WAY MESSAGING ENDPOINTS ====================
 @router.get("/count-unread-messages/{member_id}")
 async def count_unread_messages(member_id: int, current_user: dict = Depends(get_current_user)):
