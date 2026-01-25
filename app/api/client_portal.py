@@ -997,6 +997,8 @@ async def serve_client_view_page(token: str):
 @router.post("/client-view/{token}/submit-compliance")
 async def submit_client_compliance(token: str, data: dict):
     """Client submits weekly compliance - UNIFIED SYSTEM writes to compliance_logs"""
+    # ✅ ADD THIS DEBUG LOGGING (indent this line 4 spaces)
+    print(f"📥 Received compliance data: {data}")    
     
     with engine.connect() as conn:
         # Verify token
@@ -1005,7 +1007,6 @@ async def submit_client_compliance(token: str, data: dict):
             FROM client_view_tokens
             WHERE token = :token AND is_active = true
         """), {'token': token}).fetchone()
-        
         if not result:
             raise HTTPException(status_code=404, detail="Invalid link")
         
