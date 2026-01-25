@@ -1015,7 +1015,7 @@ async def submit_client_compliance(token: str, data: dict):
         
         # Get active protocol
         protocol = conn.execute(text("""
-            SELECT id, current_week, protocol_name
+            SELECT cp.id, cp.current_week, p.name as protocol_name
             FROM client_protocols cp
             JOIN protocols p ON cp.protocol_id = p.id
             WHERE cp.client_id = :client_id AND cp.status = 'active'
