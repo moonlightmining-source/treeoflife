@@ -1093,23 +1093,19 @@
                             </div>
                         `;
                     }
-                alert(`✅ ${result.message}`);
-                
-                // ✅ CLEAR ALL CHECKBOXES
-                document.querySelectorAll('.checklist li').forEach(li => {
-                    li.classList.remove('completed');
-                });
-                completedItems.clear();
-                
-                // Show success message
-                if (messageDiv) {
-                    messageDiv.innerHTML += `
-                        <div style="text-align: center; color: #22c55e; margin-top: 10px; font-weight: bold;">
-                            Form cleared and ready for next week! 🎯
-                        </div>
-                    `;
-                }
-            } else {
+                    
+                    alert('Success! ' + result.message);
+                    
+                    // Clear all checkboxes
+                    document.querySelectorAll('.checklist li').forEach(li => {
+                        li.classList.remove('completed');
+                    });
+                    completedItems.clear();
+                    
+                    // Show success message
+                    if (messageDiv) {
+                        messageDiv.innerHTML += '<div style="text-align: center; color: #22c55e; margin-top: 10px; font-weight: bold;">Form cleared and ready for next week!</div>';
+                    }
                 } else {
                     if (messageDiv) {
                         messageDiv.innerHTML = `<div style="color: #ef4444; text-align: center; margin-top: 15px; font-weight: 600;">❌ Failed to save</div>`;
