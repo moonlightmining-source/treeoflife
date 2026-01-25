@@ -544,7 +544,7 @@ async def mark_client_compliance(token: str, data: dict):
 
 @router.get("/pro/client/{member_id}/compliance-details")
 async def get_client_compliance_details(member_id: int, current_user: dict = Depends(get_current_user)):
-    """Get detailed compliance breakdown for a specific client"""
+    """Get detailed compliance breakdown - UNIFIED from compliance_logs"""
     
     try:
         with engine.connect() as conn:
@@ -557,7 +557,7 @@ async def get_client_compliance_details(member_id: int, current_user: dict = Dep
             if not member:
                 raise HTTPException(status_code=404, detail="Client not found")
             
-            # Get active protocol (only use duration_weeks)
+            # Get active protocol
             protocol = conn.execute(text("""
                 SELECT cp.id, cp.current_week, p.name as protocol_name, 
                        p.duration_weeks as total_weeks
@@ -572,125 +572,127 @@ async def get_client_compliance_details(member_id: int, current_user: dict = Dep
                     "client_name": member[0],
                     "has_protocol": False,
                     "has_data": False,
-                    "message": "No active protocol",
-                    "completed_items": [],
-                    "incomplete_items": [],
-                    "category_breakdown": {}
+                    "message": "No active protocol assigned"
                 }
             
-            # Get most recent compliance log with details
+            protocol_id = protocol[0]
+            current_week = protocol[1]
+            protocol_name = protocol[2]
+            total_weeks = protocol[3]
+            
+            # ✅ UNIFIED: Get most recent compliance log (from EITHER source)
             compliance_log = conn.execute(text("""
                 SELECT 
                     week_number,
                     compliance_score,
-                    compliance_details,
+                    compliance_data,
+                    image_base64,
                     notes,
+                    submitted_by,
                     logged_at
                 FROM compliance_logs
                 WHERE client_protocol_id = :protocol_id
                 ORDER BY logged_at DESC
                 LIMIT 1
-            """), {'protocol_id': protocol[0]}).fetchone()
+            """), {'protocol_id': protocol_id}).fetchone()
             
-            if not compliance_log or not compliance_log[1]:
+            if not compliance_log or compliance_log[1] is None:
                 return {
                     "client_name": member[0],
-                    "protocol_name": protocol[2],
-                    "current_week": protocol[1],
-                    "total_weeks": protocol[3],
+                    "protocol_name": protocol_name,
+                    "current_week": current_week,
+                    "total_weeks": total_weeks,
                     "has_data": False,
-                    "message": "No compliance data yet",
-                    "completed_items": [],
-                    "incomplete_items": [],
-                    "category_breakdown": {}
+                    "message": "No compliance data submitted yet"
                 }
             
-            # Parse compliance details
-            compliance_details = None
-            if compliance_log[2]:  # compliance_details column exists
+            week_number = compliance_log[0]
+            compliance_score = compliance_log[1]
+            compliance_data_json = compliance_log[2]
+            image_base64 = compliance_log[3]
+            notes = compliance_log[4]
+            submitted_by = compliance_log[5] or 'practitioner'
+            logged_at = compliance_log[6]
+            
+            # Parse compliance_data
+            compliance_data = {}
+            if compliance_data_json:
                 try:
-                    if isinstance(compliance_log[2], str):
-                        compliance_details = json.loads(compliance_log[2])
+                    if isinstance(compliance_data_json, str):
+                        compliance_data = json.loads(compliance_data_json)
                     else:
-                        compliance_details = compliance_log[2]
+                        compliance_data = compliance_data_json
                 except Exception as e:
-                    print(f"❌ Error parsing compliance_details: {e}")
+                    print(f"⚠️ Error parsing compliance_data: {e}")
             
-            # If no compliance_details column, try to extract from notes
-            if not compliance_details and compliance_log[3]:
-                try:
-                    if "Details:" in compliance_log[3]:
-                        details_str = compliance_log[3].split("Details:")[1].strip()
-                        compliance_details = json.loads(details_str)
-                except Exception as e:
-                    print(f"❌ Error parsing notes: {e}")
+            # Build category breakdown and item lists
+            category_breakdown = {
+                'supplements': {'completed': 0, 'total': 0, 'percentage': 0},
+                'nutrition': {'completed': 0, 'total': 0, 'percentage': 0},
+                'exercises': {'completed': 0, 'total': 0, 'percentage': 0},
+                'lifestyle': {'completed': 0, 'total': 0, 'percentage': 0},
+                'timeline': {'completed': 0, 'total': 0, 'percentage': 0}
+            }
             
-            # Calculate category breakdowns if we have detailed data
-            category_breakdown = {}
             completed_items = []
             incomplete_items = []
             
-            if compliance_details:
-                try:
-                    completed_items = compliance_details.get('completed_items', [])
-                    incomplete_items = compliance_details.get('incomplete_items', [])
-                    
-                    if completed_items or incomplete_items:
-                        # Count by category
-                        categories = {
-                            'supplements': {'completed': 0, 'total': 0},
-                            'nutrition': {'completed': 0, 'total': 0},
-                            'exercises': {'completed': 0, 'total': 0},
-                            'lifestyle': {'completed': 0, 'total': 0},
-                            'timeline': {'completed': 0, 'total': 0}
-                        }
-                        
-                        for item in completed_items:
-                            if isinstance(item, dict) and 'id' in item:
-                                category = item['id'].split('-')[0]
-                                if category in categories:
-                                    categories[category]['completed'] += 1
-                                    categories[category]['total'] += 1
-                        
-                        for item in incomplete_items:
-                            if isinstance(item, dict) and 'id' in item:
-                                category = item['id'].split('-')[0]
-                                if category in categories:
-                                    categories[category]['total'] += 1
-                        
-                        # Calculate percentages
-                        for cat, data in categories.items():
-                            if data['total'] > 0:
-                                percentage = round((data['completed'] / data['total']) * 100)
-                                category_breakdown[cat] = {
-                                    'completed': data['completed'],
-                                    'total': data['total'],
-                                    'percentage': percentage
-                                }
-                except Exception as e:
-                    print(f"❌ Error processing compliance data: {e}")
-            
-            # Handle logged_at - might be datetime or string
-            logged_at_str = None
-            if compliance_log[4]:
-                if hasattr(compliance_log[4], 'isoformat'):
-                    logged_at_str = compliance_log[4].isoformat()
+            # Process compliance data items
+            for key, value in compliance_data.items():
+                # Determine category from key
+                category = 'lifestyle'  # default
+                if 'supplement' in key.lower() or 'pill' in key.lower():
+                    category = 'supplements'
+                elif 'food' in key.lower() or 'diet' in key.lower() or 'meal' in key.lower() or 'nutrition' in key.lower():
+                    category = 'nutrition'
+                elif 'exercise' in key.lower() or 'workout' in key.lower():
+                    category = 'exercises'
+                elif 'timeline' in key.lower():
+                    category = 'timeline'
+                
+                # Clean up key for display
+                display_text = key.replace('_', ' ').replace('-', ' ').title()
+                # Remove category prefix if it's in the text
+                for cat in ['Supplements', 'Nutrition', 'Exercises', 'Lifestyle', 'Timeline']:
+                    if display_text.startswith(cat):
+                        display_text = display_text[len(cat):].strip()
+                
+                # Track in category
+                category_breakdown[category]['total'] += 1
+                if value:
+                    category_breakdown[category]['completed'] += 1
+                    completed_items.append({'text': display_text})
                 else:
-                    logged_at_str = str(compliance_log[4])
+                    incomplete_items.append({'text': display_text})
+            
+            # Calculate percentages
+            for cat_data in category_breakdown.values():
+                if cat_data['total'] > 0:
+                    cat_data['percentage'] = int((cat_data['completed'] / cat_data['total']) * 100)
+            
+            # Format logged_at
+            logged_at_str = None
+            if logged_at:
+                if hasattr(logged_at, 'isoformat'):
+                    logged_at_str = logged_at.isoformat()
+                else:
+                    logged_at_str = str(logged_at)
             
             return {
-                "client_name": member[0],
-                "protocol_name": protocol[2],
-                "current_week": protocol[1],
-                "total_weeks": protocol[3],
                 "has_data": True,
-                "compliance_score": compliance_log[1],
-                "week_number": compliance_log[0],
+                "client_name": member[0],
+                "protocol_name": protocol_name,
+                "current_week": current_week,
+                "total_weeks": total_weeks,
+                "week_number": week_number,
+                "compliance_score": compliance_score,
+                "notes": notes,
+                "image_base64": image_base64,
+                "submitted_by": submitted_by,
                 "logged_at": logged_at_str,
+                "category_breakdown": category_breakdown,
                 "completed_items": completed_items,
-                "incomplete_items": incomplete_items,
-                "total_items": compliance_details.get('total_items', 0) if compliance_details else 0,
-                "category_breakdown": category_breakdown
+                "incomplete_items": incomplete_items
             }
     
     except HTTPException:
@@ -700,7 +702,6 @@ async def get_client_compliance_details(member_id: int, current_user: dict = Dep
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error loading compliance: {str(e)}")
-
 
 # ==================== TWO-WAY MESSAGING ENDPOINTS ====================
 @router.get("/count-unread-messages/{member_id}")
