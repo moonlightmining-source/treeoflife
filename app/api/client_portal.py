@@ -997,8 +997,7 @@ async def serve_client_view_page(token: str):
 @router.post("/client-view/{token}/submit-compliance")
 async def submit_client_compliance(token: str, data: dict):
     """Client submits weekly compliance - UNIFIED SYSTEM writes to compliance_logs"""
-    # ✅ ADD THIS DEBUG LOGGING (indent this line 4 spaces)
-    print(f"📥 Received compliance data: {data}")    
+    print(f"📥 Received compliance data: {data}")
     
     with engine.connect() as conn:
         # Verify token
@@ -1007,6 +1006,7 @@ async def submit_client_compliance(token: str, data: dict):
             FROM client_view_tokens
             WHERE token = :token AND is_active = true
         """), {'token': token}).fetchone()
+        
         if not result:
             raise HTTPException(status_code=404, detail="Invalid link")
         
@@ -1041,7 +1041,7 @@ async def submit_client_compliance(token: str, data: dict):
         if total_items > 0:
             compliance_score = round((len(completed_items) / total_items) * 100)
         
-        # ✅ UNIFIED: Build compliance_data for storage
+        # Build compliance_data for storage
         compliance_data = {}
         for item in completed_items:
             if isinstance(item, dict) and 'id' in item:
@@ -1053,7 +1053,7 @@ async def submit_client_compliance(token: str, data: dict):
         # Build notes from completed/incomplete breakdown
         notes_text = message_text or f"Week {current_week} self-report: {len(completed_items)}/{total_items} items completed"
         
-        # ✅ UNIFIED: Check if already submitted for this week
+        # Check if already submitted for this week
         existing = conn.execute(text("""
             SELECT id FROM compliance_logs
             WHERE client_protocol_id = :protocol_id 
@@ -1066,7 +1066,7 @@ async def submit_client_compliance(token: str, data: dict):
             conn.execute(text("""
                 UPDATE compliance_logs
                 SET compliance_score = :score,
-                    compliance_data = :data::jsonb,
+                    compliance_data = :data,
                     image_base64 = :image,
                     notes = :notes,
                     logged_at = CURRENT_TIMESTAMP
@@ -1079,25 +1079,25 @@ async def submit_client_compliance(token: str, data: dict):
                 'id': existing[0]
             })
             log_id = existing[0]
-    else:
-        # ✅ UNIFIED: Insert new compliance log (same table as practitioner)
-        result = conn.execute(text("""
-            INSERT INTO compliance_logs 
-            (client_protocol_id, week_number, compliance_score, 
-             compliance_data, image_base64, notes, submitted_by, logged_at)
-            VALUES (:protocol_id, :week, :score, :data, :image, :notes, 'client', CURRENT_TIMESTAMP)
-            RETURNING id
-        """), {
-            'protocol_id': protocol_id,
-            'week': current_week,
-            'score': compliance_score,
-            'data': json.dumps(compliance_data),
-            'image': image_base64,
-            'notes': notes_text
-        })
-        log_id = result.fetchone()[0]
-    
-    # ✅ Create notification message for practitioner
+        else:
+            # Insert new compliance log (same table as practitioner)
+            result = conn.execute(text("""
+                INSERT INTO compliance_logs 
+                (client_protocol_id, week_number, compliance_score, 
+                 compliance_data, image_base64, notes, submitted_by, logged_at)
+                VALUES (:protocol_id, :week, :score, :data, :image, :notes, 'client', CURRENT_TIMESTAMP)
+                RETURNING id
+            """), {
+                'protocol_id': protocol_id,
+                'week': current_week,
+                'score': compliance_score,
+                'data': json.dumps(compliance_data),
+                'image': image_base64,
+                'notes': notes_text
+            })
+            log_id = result.fetchone()[0]
+        
+        # Create notification message for practitioner
         notification_text = f"📊 Week {current_week} compliance submitted: {compliance_score}%"
         if message_text:
             notification_text += f"\n\n{message_text}"
@@ -1106,7 +1106,7 @@ async def submit_client_compliance(token: str, data: dict):
             INSERT INTO client_messages 
             (family_member_id, practitioner_id, sender_type, message_text, 
              image_base64, compliance_data, compliance_log_id, is_read, created_at)
-            VALUES (:member_id, :prac_id, 'client', :message, :image, :data::jsonb, :log_id, false, CURRENT_TIMESTAMP)
+            VALUES (:member_id, :prac_id, 'client', :message, :image, :data, :log_id, false, CURRENT_TIMESTAMP)
         """), {
             'member_id': family_member_id,
             'prac_id': str(practitioner_id),
