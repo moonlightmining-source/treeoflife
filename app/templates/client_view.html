@@ -1037,34 +1037,7 @@
                 header.style.display = 'none';
             }
         }
-
-        async function loadReplies() {
-            try {
-                const response = await fetch(`/api/client-view/${token}/replies`);
-                const data = await response.json();
-                
-                if (data.replies && data.replies.length > 0) {
-                    document.getElementById('replies-section').style.display = 'block';
-                    
-                    const repliesList = document.getElementById('replies-list');
-                    repliesList.innerHTML = '';
-                    
-                    data.replies.forEach(reply => {
-                        const card = document.createElement('div');
-                        card.className = 'reply-card';
-                        card.innerHTML = `
-                            <div class="reply-question">Your question: "${reply.your_question}"</div>
-                            <div class="reply-answer">${reply.practitioner_reply}</div>
-                            <div class="reply-date">Replied ${new Date(reply.replied_at).toLocaleDateString()}</div>
-                        `;
-                        repliesList.appendChild(card);
-                    });
-                }
-            } catch (error) {
-                console.error('Error loading replies:', error);
-            }
-        }
-
+        
         function toggleItem(element, itemId) {
             element.classList.toggle('completed');
             if (element.classList.contains('completed')) {
