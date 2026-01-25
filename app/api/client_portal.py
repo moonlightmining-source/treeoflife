@@ -1081,13 +1081,7 @@ async def submit_client_compliance(token: str, data: dict):
             log_id = existing[0]
         else:
             # ✅ UNIFIED: Insert new compliance log (same table as practitioner)
-            result = conn.execute(text("""
-                INSERT INTO compliance_logs 
-                (client_protocol_id, week_number, compliance_score, 
-                 compliance_data, image_base64, notes, submitted_by, logged_at)
-                VALUES (:protocol_id, :week, :score, :data::jsonb, :image, :notes, 'client', CURRENT_TIMESTAMP)
-                RETURNING id
-            """), {
+            
                 'protocol_id': protocol_id,
                 'week': current_week,
                 'score': compliance_score,
