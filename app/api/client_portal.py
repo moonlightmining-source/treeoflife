@@ -1079,19 +1079,25 @@ async def submit_client_compliance(token: str, data: dict):
                 'id': existing[0]
             })
             log_id = existing[0]
-        else:
-            # ✅ UNIFIED: Insert new compliance log (same table as practitioner)
-            
-                'protocol_id': protocol_id,
-                'week': current_week,
-                'score': compliance_score,
-                'data': json.dumps(compliance_data),
-                'image': image_base64,
-                'notes': notes_text
-            })
-            log_id = result.fetchone()[0]
-        
-        # ✅ Create notification message for practitioner
+    else:
+        # ✅ UNIFIED: Insert new compliance log (same table as practitioner)
+        result = conn.execute(text("""
+            INSERT INTO compliance_logs 
+            (client_protocol_id, week_number, compliance_score, 
+             compliance_data, image_base64, notes, submitted_by, logged_at)
+            VALUES (:protocol_id, :week, :score, :data, :image, :notes, 'client', CURRENT_TIMESTAMP)
+            RETURNING id
+        """), {
+            'protocol_id': protocol_id,
+            'week': current_week,
+            'score': compliance_score,
+            'data': json.dumps(compliance_data),
+            'image': image_base64,
+            'notes': notes_text
+        })
+        log_id = result.fetchone()[0]
+    
+    # ✅ Create notification message for practitioner
         notification_text = f"📊 Week {current_week} compliance submitted: {compliance_score}%"
         if message_text:
             notification_text += f"\n\n{message_text}"
