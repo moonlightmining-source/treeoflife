@@ -11,8 +11,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from contextlib import contextmanager
-from datetime import datetime, timedelta
-import secrets
+from fastapi import HTTPException, Depends
+from sqlalchemy.orm import Session
 import os
 import jwt
 import bcrypt
