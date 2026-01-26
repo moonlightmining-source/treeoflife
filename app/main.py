@@ -2738,53 +2738,60 @@ def calculate_compliance_breakdown(protocol, compliance_data):
     completed_items = []
     incomplete_items = []
     
-    # Process supplements
+    # Process supplements - match by name
     if protocol.supplements and isinstance(protocol.supplements, list):
         for item in protocol.supplements:
-            item_id = f"supplement_{item.get('id', '')}"
-            categories['supplements']['total'] += 1
-            
-            if compliance_data.get(item_id):
-                categories['supplements']['completed'] += 1
-                completed_items.append({'text': item.get('name', 'Unknown supplement')})
-            else:
-                incomplete_items.append({'text': item.get('name', 'Unknown supplement')})
+            if isinstance(item, dict):
+                item_name = item.get('name', '')
+                # Client portal creates IDs like: supplement_Turmeric
+                item_id = f"supplement_{item_name}"
+                categories['supplements']['total'] += 1
+                
+                if compliance_data.get(item_id):
+                    categories['supplements']['completed'] += 1
+                    completed_items.append({'text': item_name})
+                else:
+                    incomplete_items.append({'text': item_name})
     
-    # Process nutrition
-    if protocol.nutrition and isinstance(protocol.nutrition, list):
-        for item in protocol.nutrition:
-            item_id = f"nutrition_{item.get('id', '')}"
-            categories['nutrition']['total'] += 1
-            
-            if compliance_data.get(item_id):
-                categories['nutrition']['completed'] += 1
-                completed_items.append({'text': item.get('text', 'Nutrition item')})
-            else:
-                incomplete_items.append({'text': item.get('text', 'Nutrition item')})
-    
-    # Process exercises
+    # Process exercises - match by name
     if protocol.exercises and isinstance(protocol.exercises, list):
         for item in protocol.exercises:
-            item_id = f"exercise_{item.get('id', '')}"
-            categories['exercises']['total'] += 1
-            
-            if compliance_data.get(item_id):
-                categories['exercises']['completed'] += 1
-                completed_items.append({'text': item.get('name', 'Exercise')})
-            else:
-                incomplete_items.append({'text': item.get('name', 'Exercise')})
+            if isinstance(item, dict):
+                item_name = item.get('name', '')
+                item_id = f"exercise_{item_name}"
+                categories['exercises']['total'] += 1
+                
+                if compliance_data.get(item_id):
+                    categories['exercises']['completed'] += 1
+                    completed_items.append({'text': item_name})
+                else:
+                    incomplete_items.append({'text': item_name})
     
-    # Process lifestyle
+    # Process lifestyle_changes - match by title
     if protocol.lifestyle_changes and isinstance(protocol.lifestyle_changes, list):
         for item in protocol.lifestyle_changes:
-            item_id = f"lifestyle_{item.get('id', '')}"
-            categories['lifestyle']['total'] += 1
-            
-            if compliance_data.get(item_id):
-                categories['lifestyle']['completed'] += 1
-                completed_items.append({'text': item.get('text', 'Lifestyle change')})
-            else:
-                incomplete_items.append({'text': item.get('text', 'Lifestyle change')})
+            if isinstance(item, dict):
+                item_name = item.get('title', item.get('text', ''))
+                item_id = f"lifestyle_{item_name}"
+                categories['lifestyle']['total'] += 1
+                
+                if compliance_data.get(item_id):
+                    categories['lifestyle']['completed'] += 1
+                    completed_items.append({'text': item_name})
+                else:
+                    incomplete_items.append({'text': item_name})
+    
+    # Process nutrition - stored as object with fields
+    if protocol.nutrition and isinstance(protocol.nutrition, dict):
+        # Nutrition is stored differently - it's not a list of items
+        # Skip for now or handle nutrition goals separately
+        pass
+    
+    # Process sleep - stored as object
+    if protocol.sleep and isinstance(protocol.sleep, dict):
+        # Sleep is stored as single object with target_hours, bedtime, notes
+        # Skip for now
+        pass
     
     # Calculate percentages
     for category in categories.values():
