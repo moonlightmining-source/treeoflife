@@ -32,7 +32,7 @@ MESSAGE_LIMITS = {
     'free': 10,      # 10 messages/month
     'basic': 50,     # 50 messages/month  
     'premium': 200,  # 200 messages/month
-    'pro': 500       # 500 messages/month
+    'pro': 999       # 999 messages/month
 }
 
 # Add this helper function
