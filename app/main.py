@@ -2680,6 +2680,7 @@ async def get_compliance(request: Request, client_protocol_id: int):
         # ✅ Get ALL logs (both client and practitioner submissions)
         logs = db.execute(text("""
             SELECT 
+                id,
                 week_number,
                 compliance_score,
                 notes,
@@ -2693,13 +2694,14 @@ async def get_compliance(request: Request, client_protocol_id: int):
         """), {'protocol_id': client_protocol_id}).fetchall()
         
         return {"logs": [{
-            "week_number": log[0],
-            "compliance_score": log[1],
-            "notes": log[2],
-            "compliance_data": log[3],
-            "image_base64": log[4],
-            "submitted_by": log[5] or 'practitioner',
-            "logged_at": log[6].isoformat() if log[6] else None
+            "id": log[0],
+            "week_number": log[1],
+            "compliance_score": log[2],
+            "notes": log[3],
+            "compliance_data": log[4],
+            "image_base64": log[5],
+            "submitted_by": log[6] or 'practitioner',
+            "logged_at": log[7].isoformat() if log[7] else None
         } for log in logs]}
 @app.delete("/api/compliance/{log_id}")
 async def delete_compliance_log(
