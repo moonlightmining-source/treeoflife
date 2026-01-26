@@ -2748,64 +2748,61 @@ def calculate_compliance_breakdown(protocol, compliance_data):
                 
                 if compliance_data.get(item_id) == True:
                     categories['supplements']['completed'] += 1
-                    completed_items.append({'text': item_name})
+                    completed_items.append({'text': item_name, 'category': 'supplements'})
                 else:
-                    incomplete_items.append({'text': item_name})
+                    incomplete_items.append({'text': item_name, 'category': 'supplements'})
     
     # Process nutrition - match by INDEX (nutrition-0, nutrition-1, etc.)
     if protocol.nutrition and isinstance(protocol.nutrition, dict):
-        # Check if nutrition has structured items
-        if 'foods_to_include' in protocol.nutrition or 'foods_to_avoid' in protocol.nutrition:
-            # Count nutrition as items if they exist
-            idx = 0
-            if protocol.nutrition.get('foods_to_include'):
-                item_id = f"nutrition-{idx}"
-                categories['nutrition']['total'] += 1
-                if compliance_data.get(item_id) == True:
-                    categories['nutrition']['completed'] += 1
-                    completed_items.append({'text': 'Include recommended foods'})
-                else:
-                    incomplete_items.append({'text': 'Include recommended foods'})
-                idx += 1
-            
-            if protocol.nutrition.get('foods_to_avoid'):
-                item_id = f"nutrition-{idx}"
-                categories['nutrition']['total'] += 1
-                if compliance_data.get(item_id) == True:
-                    categories['nutrition']['completed'] += 1
-                    completed_items.append({'text': 'Avoid restricted foods'})
-                else:
-                    incomplete_items.append({'text': 'Avoid restricted foods'})
-                idx += 1
-            
-            if protocol.nutrition.get('meal_timing'):
-                item_id = f"nutrition-{idx}"
-                categories['nutrition']['total'] += 1
-                if compliance_data.get(item_id) == True:
-                    categories['nutrition']['completed'] += 1
-                    completed_items.append({'text': 'Follow meal timing'})
-                else:
-                    incomplete_items.append({'text': 'Follow meal timing'})
-                idx += 1
-            
-            if protocol.nutrition.get('hydration'):
-                item_id = f"nutrition-{idx}"
-                categories['nutrition']['total'] += 1
-                if compliance_data.get(item_id) == True:
-                    categories['nutrition']['completed'] += 1
-                    completed_items.append({'text': 'Meet hydration goals'})
-                else:
-                    incomplete_items.append({'text': 'Meet hydration goals'})
-                idx += 1
-            
-            if protocol.nutrition.get('daily_calories'):
-                item_id = f"nutrition-{idx}"
-                categories['nutrition']['total'] += 1
-                if compliance_data.get(item_id) == True:
-                    categories['nutrition']['completed'] += 1
-                    completed_items.append({'text': 'Meet calorie target'})
-                else:
-                    incomplete_items.append({'text': 'Meet calorie target'})
+        idx = 0
+        if protocol.nutrition.get('foods_to_include'):
+            item_id = f"nutrition-{idx}"
+            categories['nutrition']['total'] += 1
+            if compliance_data.get(item_id) == True:
+                categories['nutrition']['completed'] += 1
+                completed_items.append({'text': 'Include recommended foods', 'category': 'nutrition'})
+            else:
+                incomplete_items.append({'text': 'Include recommended foods', 'category': 'nutrition'})
+            idx += 1
+        
+        if protocol.nutrition.get('foods_to_avoid'):
+            item_id = f"nutrition-{idx}"
+            categories['nutrition']['total'] += 1
+            if compliance_data.get(item_id) == True:
+                categories['nutrition']['completed'] += 1
+                completed_items.append({'text': 'Avoid restricted foods', 'category': 'nutrition'})
+            else:
+                incomplete_items.append({'text': 'Avoid restricted foods', 'category': 'nutrition'})
+            idx += 1
+        
+        if protocol.nutrition.get('meal_timing'):
+            item_id = f"nutrition-{idx}"
+            categories['nutrition']['total'] += 1
+            if compliance_data.get(item_id) == True:
+                categories['nutrition']['completed'] += 1
+                completed_items.append({'text': 'Follow meal timing', 'category': 'nutrition'})
+            else:
+                incomplete_items.append({'text': 'Follow meal timing', 'category': 'nutrition'})
+            idx += 1
+        
+        if protocol.nutrition.get('hydration'):
+            item_id = f"nutrition-{idx}"
+            categories['nutrition']['total'] += 1
+            if compliance_data.get(item_id) == True:
+                categories['nutrition']['completed'] += 1
+                completed_items.append({'text': 'Meet hydration goals', 'category': 'nutrition'})
+            else:
+                incomplete_items.append({'text': 'Meet hydration goals', 'category': 'nutrition'})
+            idx += 1
+        
+        if protocol.nutrition.get('daily_calories'):
+            item_id = f"nutrition-{idx}"
+            categories['nutrition']['total'] += 1
+            if compliance_data.get(item_id) == True:
+                categories['nutrition']['completed'] += 1
+                completed_items.append({'text': 'Meet calorie target', 'category': 'nutrition'})
+            else:
+                incomplete_items.append({'text': 'Meet calorie target', 'category': 'nutrition'})
     
     # Process exercises - match by INDEX (exercises-0, exercises-1, etc.)
     if protocol.exercises and isinstance(protocol.exercises, list):
@@ -2817,9 +2814,9 @@ def calculate_compliance_breakdown(protocol, compliance_data):
                 
                 if compliance_data.get(item_id) == True:
                     categories['exercises']['completed'] += 1
-                    completed_items.append({'text': item_name})
+                    completed_items.append({'text': item_name, 'category': 'exercises'})
                 else:
-                    incomplete_items.append({'text': item_name})
+                    incomplete_items.append({'text': item_name, 'category': 'exercises'})
     
     # Process lifestyle_changes - match by INDEX (lifestyle-0, lifestyle-1, etc.)
     if protocol.lifestyle_changes and isinstance(protocol.lifestyle_changes, list):
@@ -2831,9 +2828,9 @@ def calculate_compliance_breakdown(protocol, compliance_data):
                 
                 if compliance_data.get(item_id) == True:
                     categories['lifestyle']['completed'] += 1
-                    completed_items.append({'text': item_name})
+                    completed_items.append({'text': item_name, 'category': 'lifestyle'})
                 else:
-                    incomplete_items.append({'text': item_name})
+                    incomplete_items.append({'text': item_name, 'category': 'lifestyle'})
     
     # Process timeline/sleep - match by INDEX (timeline-0, timeline-1, etc.)
     if protocol.sleep and isinstance(protocol.sleep, dict):
@@ -2843,9 +2840,9 @@ def calculate_compliance_breakdown(protocol, compliance_data):
             categories['timeline']['total'] += 1
             if compliance_data.get(item_id) == True:
                 categories['timeline']['completed'] += 1
-                completed_items.append({'text': f"Sleep {protocol.sleep['target_hours']} hours"})
+                completed_items.append({'text': f"Sleep {protocol.sleep['target_hours']} hours", 'category': 'timeline'})
             else:
-                incomplete_items.append({'text': f"Sleep {protocol.sleep['target_hours']} hours"})
+                incomplete_items.append({'text': f"Sleep {protocol.sleep['target_hours']} hours", 'category': 'timeline'})
             idx += 1
         
         if protocol.sleep.get('bedtime'):
@@ -2853,9 +2850,9 @@ def calculate_compliance_breakdown(protocol, compliance_data):
             categories['timeline']['total'] += 1
             if compliance_data.get(item_id) == True:
                 categories['timeline']['completed'] += 1
-                completed_items.append({'text': f"Bedtime by {protocol.sleep['bedtime']}"})
+                completed_items.append({'text': f"Bedtime by {protocol.sleep['bedtime']}", 'category': 'timeline'})
             else:
-                incomplete_items.append({'text': f"Bedtime by {protocol.sleep['bedtime']}"})
+                incomplete_items.append({'text': f"Bedtime by {protocol.sleep['bedtime']}", 'category': 'timeline'})
     
     # Calculate percentages
     for category in categories.values():
