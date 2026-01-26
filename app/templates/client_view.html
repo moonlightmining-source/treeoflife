@@ -1234,7 +1234,7 @@
                     formData.append('image', selectedImage);
                 }
                 
-                const response = await fetch(`/api/client-view/${token}/message`, {
+                const response = await fetch(`/api/client-view/${token}/send-message`, {
                     method: 'POST',
                     body: formData
                 });
