@@ -32,8 +32,7 @@ MESSAGE_LIMITS = {
     'free': 10,      # 10 messages/month
     'basic': 50,     # 50 messages/month  
     'premium': 200,  # 200 messages/month
-    'pro': 999       # 999 messages/month
-}
+    'pro': none       # none = unlimited
 
 # Add this helper function
 def check_message_limit(user_id, tier):
