@@ -2701,6 +2701,38 @@ async def get_compliance(request: Request, client_protocol_id: int):
             "submitted_by": log[5] or 'practitioner',
             "logged_at": log[6].isoformat() if log[6] else None
         } for log in logs]}
+@app.delete("/api/compliance/{log_id}")
+async def delete_compliance_log(
+    request: Request,
+    log_id: int
+):
+    """Delete a compliance log entry - practitioner can delete any log for their clients"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Get the compliance log
+        log = db.query(ComplianceLog).filter(ComplianceLog.id == log_id).first()
+        
+        if not log:
+            raise HTTPException(status_code=404, detail="Compliance log not found")
+        
+        # Get the client protocol to verify ownership
+        client_protocol = db.query(ClientProtocol).filter(
+            ClientProtocol.id == log.client_protocol_id
+        ).first()
+        
+        if not client_protocol:
+            raise HTTPException(status_code=404, detail="Protocol not found")
+        
+        # Verify the current user owns this client protocol
+        if str(client_protocol.user_id) != str(user_id):
+            raise HTTPException(status_code=403, detail="Not authorized to delete this compliance log")
+        
+        # Delete the log
+        db.delete(log)
+        db.commit()
+        
+        return {"success": True, "message": "Compliance log deleted"} 
 @app.get("/api/analytics/dashboard")
 async def get_analytics(request: Request):
     """Get analytics data for dashboard"""
