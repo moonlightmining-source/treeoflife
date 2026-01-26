@@ -2738,60 +2738,124 @@ def calculate_compliance_breakdown(protocol, compliance_data):
     completed_items = []
     incomplete_items = []
     
-    # Process supplements - match by name
+    # Process supplements - match by INDEX (supplements-0, supplements-1, etc.)
     if protocol.supplements and isinstance(protocol.supplements, list):
-        for item in protocol.supplements:
+        for idx, item in enumerate(protocol.supplements):
             if isinstance(item, dict):
-                item_name = item.get('name', '')
-                # Client portal creates IDs like: supplement_Turmeric
-                item_id = f"supplement_{item_name}"
+                item_id = f"supplements-{idx}"
+                item_name = item.get('name', f'Supplement {idx+1}')
                 categories['supplements']['total'] += 1
                 
-                if compliance_data.get(item_id):
+                if compliance_data.get(item_id) == True:
                     categories['supplements']['completed'] += 1
                     completed_items.append({'text': item_name})
                 else:
                     incomplete_items.append({'text': item_name})
     
-    # Process exercises - match by name
+    # Process nutrition - match by INDEX (nutrition-0, nutrition-1, etc.)
+    if protocol.nutrition and isinstance(protocol.nutrition, dict):
+        # Check if nutrition has structured items
+        if 'foods_to_include' in protocol.nutrition or 'foods_to_avoid' in protocol.nutrition:
+            # Count nutrition as items if they exist
+            idx = 0
+            if protocol.nutrition.get('foods_to_include'):
+                item_id = f"nutrition-{idx}"
+                categories['nutrition']['total'] += 1
+                if compliance_data.get(item_id) == True:
+                    categories['nutrition']['completed'] += 1
+                    completed_items.append({'text': 'Include recommended foods'})
+                else:
+                    incomplete_items.append({'text': 'Include recommended foods'})
+                idx += 1
+            
+            if protocol.nutrition.get('foods_to_avoid'):
+                item_id = f"nutrition-{idx}"
+                categories['nutrition']['total'] += 1
+                if compliance_data.get(item_id) == True:
+                    categories['nutrition']['completed'] += 1
+                    completed_items.append({'text': 'Avoid restricted foods'})
+                else:
+                    incomplete_items.append({'text': 'Avoid restricted foods'})
+                idx += 1
+            
+            if protocol.nutrition.get('meal_timing'):
+                item_id = f"nutrition-{idx}"
+                categories['nutrition']['total'] += 1
+                if compliance_data.get(item_id) == True:
+                    categories['nutrition']['completed'] += 1
+                    completed_items.append({'text': 'Follow meal timing'})
+                else:
+                    incomplete_items.append({'text': 'Follow meal timing'})
+                idx += 1
+            
+            if protocol.nutrition.get('hydration'):
+                item_id = f"nutrition-{idx}"
+                categories['nutrition']['total'] += 1
+                if compliance_data.get(item_id) == True:
+                    categories['nutrition']['completed'] += 1
+                    completed_items.append({'text': 'Meet hydration goals'})
+                else:
+                    incomplete_items.append({'text': 'Meet hydration goals'})
+                idx += 1
+            
+            if protocol.nutrition.get('daily_calories'):
+                item_id = f"nutrition-{idx}"
+                categories['nutrition']['total'] += 1
+                if compliance_data.get(item_id) == True:
+                    categories['nutrition']['completed'] += 1
+                    completed_items.append({'text': 'Meet calorie target'})
+                else:
+                    incomplete_items.append({'text': 'Meet calorie target'})
+    
+    # Process exercises - match by INDEX (exercises-0, exercises-1, etc.)
     if protocol.exercises and isinstance(protocol.exercises, list):
-        for item in protocol.exercises:
+        for idx, item in enumerate(protocol.exercises):
             if isinstance(item, dict):
-                item_name = item.get('name', '')
-                item_id = f"exercise_{item_name}"
+                item_id = f"exercises-{idx}"
+                item_name = item.get('name', f'Exercise {idx+1}')
                 categories['exercises']['total'] += 1
                 
-                if compliance_data.get(item_id):
+                if compliance_data.get(item_id) == True:
                     categories['exercises']['completed'] += 1
                     completed_items.append({'text': item_name})
                 else:
                     incomplete_items.append({'text': item_name})
     
-    # Process lifestyle_changes - match by title
+    # Process lifestyle_changes - match by INDEX (lifestyle-0, lifestyle-1, etc.)
     if protocol.lifestyle_changes and isinstance(protocol.lifestyle_changes, list):
-        for item in protocol.lifestyle_changes:
+        for idx, item in enumerate(protocol.lifestyle_changes):
             if isinstance(item, dict):
-                item_name = item.get('title', item.get('text', ''))
-                item_id = f"lifestyle_{item_name}"
+                item_id = f"lifestyle-{idx}"
+                item_name = item.get('title', item.get('text', f'Lifestyle change {idx+1}'))
                 categories['lifestyle']['total'] += 1
                 
-                if compliance_data.get(item_id):
+                if compliance_data.get(item_id) == True:
                     categories['lifestyle']['completed'] += 1
                     completed_items.append({'text': item_name})
                 else:
                     incomplete_items.append({'text': item_name})
     
-    # Process nutrition - stored as object with fields
-    if protocol.nutrition and isinstance(protocol.nutrition, dict):
-        # Nutrition is stored differently - it's not a list of items
-        # Skip for now or handle nutrition goals separately
-        pass
-    
-    # Process sleep - stored as object
+    # Process timeline/sleep - match by INDEX (timeline-0, timeline-1, etc.)
     if protocol.sleep and isinstance(protocol.sleep, dict):
-        # Sleep is stored as single object with target_hours, bedtime, notes
-        # Skip for now
-        pass
+        idx = 0
+        if protocol.sleep.get('target_hours'):
+            item_id = f"timeline-{idx}"
+            categories['timeline']['total'] += 1
+            if compliance_data.get(item_id) == True:
+                categories['timeline']['completed'] += 1
+                completed_items.append({'text': f"Sleep {protocol.sleep['target_hours']} hours"})
+            else:
+                incomplete_items.append({'text': f"Sleep {protocol.sleep['target_hours']} hours"})
+            idx += 1
+        
+        if protocol.sleep.get('bedtime'):
+            item_id = f"timeline-{idx}"
+            categories['timeline']['total'] += 1
+            if compliance_data.get(item_id) == True:
+                categories['timeline']['completed'] += 1
+                completed_items.append({'text': f"Bedtime by {protocol.sleep['bedtime']}"})
+            else:
+                incomplete_items.append({'text': f"Bedtime by {protocol.sleep['bedtime']}"})
     
     # Calculate percentages
     for category in categories.values():
