@@ -2667,7 +2667,7 @@ async def log_compliance(request: Request, compliance: ComplianceCreate):
 
 @app.get("/api/compliance/{client_protocol_id}")
 async def get_compliance(request: Request, client_protocol_id: int):
-    """Get compliance logs for an assignment - UNIFIED system"""
+    """Get compliance logs for an assignment - UNIFIED system with detailed breakdown"""
     user_id = get_current_user_id(request)
     
     with get_db_context() as db:
@@ -2679,7 +2679,10 @@ async def get_compliance(request: Request, client_protocol_id: int):
         if not assignment:
             raise HTTPException(status_code=404, detail="Assignment not found")
         
-        # ✅ Get ALL logs (both client and practitioner submissions)
+        # Get the protocol to access its content
+        protocol = db.query(Protocol).filter(Protocol.id == assignment.protocol_id).first()
+        
+        # Get ALL logs (both client and practitioner submissions)
         logs = db.execute(text("""
             SELECT 
                 id,
@@ -2695,84 +2698,104 @@ async def get_compliance(request: Request, client_protocol_id: int):
             ORDER BY logged_at DESC
         """), {'protocol_id': client_protocol_id}).fetchall()
         
-        return {"logs": [{
-            "id": log[0],
-            "week_number": log[1],
-            "compliance_score": log[2],
-            "notes": log[3],
-            "compliance_data": log[4],
-            "image_base64": log[5],
-            "submitted_by": log[6] or 'practitioner',
-            "logged_at": log[7].isoformat() if log[7] else None
-        } for log in logs]}
-@app.delete("/api/compliance/{log_id}")
-async def delete_compliance_log(
-    request: Request,
-    log_id: int
-):
-    """Delete a compliance log entry - practitioner can delete any log for their clients"""
-    user_id = get_current_user_id(request)
+        # Process each log to add detailed breakdown
+        processed_logs = []
+        for log in logs:
+            log_dict = {
+                "id": log[0],
+                "week_number": log[1],
+                "compliance_score": log[2],
+                "notes": log[3],
+                "compliance_data": log[4],
+                "image_base64": log[5],
+                "submitted_by": log[6] or 'practitioner',
+                "logged_at": log[7].isoformat() if log[7] else None
+            }
+            
+            # Calculate detailed breakdown if we have protocol and compliance_data
+            if protocol and log[4]:  # log[4] is compliance_data
+                breakdown = calculate_compliance_breakdown(protocol, log[4])
+                log_dict.update(breakdown)
+            
+            processed_logs.append(log_dict)
+        
+        return {"logs": processed_logs}
+
+
+def calculate_compliance_breakdown(protocol, compliance_data):
+    """Calculate detailed compliance breakdown from protocol and compliance_data"""
+    if not compliance_data or not isinstance(compliance_data, dict):
+        return {}
     
-    with get_db_context() as db:
-        # Get the compliance log
-        log = db.query(ComplianceLog).filter(ComplianceLog.id == log_id).first()
-        
-        if not log:
-            raise HTTPException(status_code=404, detail="Compliance log not found")
-        
-        # Get the client protocol to verify ownership
-        client_protocol = db.query(ClientProtocol).filter(
-            ClientProtocol.id == log.client_protocol_id
-        ).first()
-        
-        if not client_protocol:
-            raise HTTPException(status_code=404, detail="Protocol not found")
-        
-        # Verify the current user owns this client protocol
-        if str(client_protocol.user_id) != str(user_id):
-            raise HTTPException(status_code=403, detail="Not authorized to delete this compliance log")
-        
-        # Delete the log
-        db.delete(log)
-        db.commit()
-        
-        return {"success": True, "message": "Compliance log deleted"} 
-@app.get("/api/analytics/dashboard")
-async def get_analytics(request: Request):
-    """Get analytics data for dashboard"""
-    user_id = get_current_user_id(request)
+    categories = {
+        'supplements': {'completed': 0, 'total': 0, 'percentage': 0},
+        'nutrition': {'completed': 0, 'total': 0, 'percentage': 0},
+        'exercises': {'completed': 0, 'total': 0, 'percentage': 0},
+        'lifestyle': {'completed': 0, 'total': 0, 'percentage': 0},
+        'timeline': {'completed': 0, 'total': 0, 'percentage': 0}
+    }
     
-    with get_db_context() as db:
-        total_clients = db.query(FamilyMember).filter(FamilyMember.user_id == user_id).count()
-        
-        active_assignments = db.query(ClientProtocol).filter(
-            ClientProtocol.user_id == user_id,
-            ClientProtocol.status == 'active'
-        ).count()
-        
-        all_assignments = db.query(ClientProtocol).filter(
-            ClientProtocol.user_id == user_id
-        ).all()
-        
-        avg_completion = sum(a.completion_percentage for a in all_assignments) / len(all_assignments) if all_assignments else 0
-        
-        recent_logs = db.query(ComplianceLog).join(ClientProtocol).filter(
-            ClientProtocol.user_id == user_id
-        ).order_by(ComplianceLog.logged_at.desc()).limit(10).all()
-        
-        avg_compliance = sum(log.compliance_score for log in recent_logs) / len(recent_logs) if recent_logs else 0
-        
-        return {
-            "total_clients": total_clients,
-            "active_protocols": active_assignments,
-            "avg_completion": round(avg_completion, 1),
-            "avg_compliance": round(avg_compliance, 1),
-            "client_retention": 92,
-            "recent_compliance": [{
-                "week": log.week_number,
-                "score": log.compliance_score
-            } for log in recent_logs]
-        }
+    completed_items = []
+    incomplete_items = []
+    
+    # Process supplements
+    if protocol.supplements and isinstance(protocol.supplements, list):
+        for item in protocol.supplements:
+            item_id = f"supplement_{item.get('id', '')}"
+            categories['supplements']['total'] += 1
+            
+            if compliance_data.get(item_id):
+                categories['supplements']['completed'] += 1
+                completed_items.append({'text': item.get('name', 'Unknown supplement')})
+            else:
+                incomplete_items.append({'text': item.get('name', 'Unknown supplement')})
+    
+    # Process nutrition
+    if protocol.nutrition and isinstance(protocol.nutrition, list):
+        for item in protocol.nutrition:
+            item_id = f"nutrition_{item.get('id', '')}"
+            categories['nutrition']['total'] += 1
+            
+            if compliance_data.get(item_id):
+                categories['nutrition']['completed'] += 1
+                completed_items.append({'text': item.get('text', 'Nutrition item')})
+            else:
+                incomplete_items.append({'text': item.get('text', 'Nutrition item')})
+    
+    # Process exercises
+    if protocol.exercises and isinstance(protocol.exercises, list):
+        for item in protocol.exercises:
+            item_id = f"exercise_{item.get('id', '')}"
+            categories['exercises']['total'] += 1
+            
+            if compliance_data.get(item_id):
+                categories['exercises']['completed'] += 1
+                completed_items.append({'text': item.get('name', 'Exercise')})
+            else:
+                incomplete_items.append({'text': item.get('name', 'Exercise')})
+    
+    # Process lifestyle
+    if protocol.lifestyle_changes and isinstance(protocol.lifestyle_changes, list):
+        for item in protocol.lifestyle_changes:
+            item_id = f"lifestyle_{item.get('id', '')}"
+            categories['lifestyle']['total'] += 1
+            
+            if compliance_data.get(item_id):
+                categories['lifestyle']['completed'] += 1
+                completed_items.append({'text': item.get('text', 'Lifestyle change')})
+            else:
+                incomplete_items.append({'text': item.get('text', 'Lifestyle change')})
+    
+    # Calculate percentages
+    for category in categories.values():
+        if category['total'] > 0:
+            category['percentage'] = round((category['completed'] / category['total']) * 100)
+    
+    return {
+        'category_breakdown': categories,
+        'completed_items': completed_items,
+        'incomplete_items': incomplete_items
+    }
     
 # ==================== PRO DASHBOARD ENDPOINTS ====================
 
