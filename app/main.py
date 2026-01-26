@@ -37,18 +37,21 @@ MESSAGE_LIMITS = {
 # Add this helper function
 def check_message_limit(user_id, tier):
     """Check if user has exceeded monthly message limit"""
+    limit = MESSAGE_LIMITS.get(tier, MESSAGE_LIMITS['free'])
+    
+    # Pro tier is unlimited
+    if limit is None:
+        return
+    
     with get_db_context() as db:
-        # Get message count for current month
         from datetime import datetime
         current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0)
         
         message_count = db.query(Message).join(Conversation).filter(
             Conversation.user_id == user_id,
             Message.timestamp >= current_month_start,
-            Message.role == 'user'  # Only count user messages
+            Message.role == 'user'
         ).count()
-        
-        limit = MESSAGE_LIMITS.get(tier, MESSAGE_LIMITS['free'])
         
         if message_count >= limit:
             raise HTTPException(
