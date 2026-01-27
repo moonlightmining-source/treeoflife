@@ -26,7 +26,35 @@ from typing import Optional, List, Dict
 from app.enhanced_system_prompt import SYSTEM_PROMPT_WITH_WESTERN_MED
 from app.skill_loader import get_specialized_knowledge
 resend.api_key = os.environ.get('RESEND_API_KEY')
-
+@app.get("/admin/fix-foreign-key")
+async def fix_foreign_key_constraint(request: Request):
+    """One-time migration to fix compliance deletion issue"""
+    try:
+        with get_db_context() as db:
+            # Drop the old constraint
+            db.execute(text("""
+                ALTER TABLE client_messages 
+                DROP CONSTRAINT IF EXISTS client_messages_compliance_log_id_fkey;
+            """))
+            
+            # Add new constraint with SET NULL on delete
+            db.execute(text("""
+                ALTER TABLE client_messages 
+                ADD CONSTRAINT client_messages_compliance_log_id_fkey 
+                FOREIGN KEY (compliance_log_id) 
+                REFERENCES compliance_logs(id) 
+                ON DELETE SET NULL;
+            """))
+            
+            db.commit()
+            
+            return {
+                "success": True, 
+                "message": "Foreign key constraint fixed! You can now delete compliance logs."
+            }
+    
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 # Near top of main.py, after imports
 MESSAGE_LIMITS = {
     'free': 10,      # 10 messages/month
