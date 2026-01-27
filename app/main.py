@@ -546,6 +546,30 @@ if os.path.exists("app/static"):
     print("✅ Static files mounted from app/static/")
 else:
     print("⚠️  /app/static/ directory not found - PWA features disabled")
+@app.get("/admin/fix-foreign-key")
+async def fix_foreign_key_constraint(request: Request):
+    """One-time migration to fix compliance deletion issue"""
+    try:
+        with get_db_context() as db:
+            db.execute(text("""
+                ALTER TABLE client_messages 
+                DROP CONSTRAINT IF EXISTS client_messages_compliance_log_id_fkey;
+            """))
+            
+            db.execute(text("""
+                ALTER TABLE client_messages 
+                ADD CONSTRAINT client_messages_compliance_log_id_fkey 
+                FOREIGN KEY (compliance_log_id) 
+                REFERENCES compliance_logs(id) 
+                ON DELETE SET NULL;
+            """))
+            
+            db.commit()
+            
+            return {"success": True, "message": "Foreign key constraint fixed!"}
+    
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 app.add_middleware(
     CORSMiddleware,
