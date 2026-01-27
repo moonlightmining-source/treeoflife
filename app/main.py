@@ -2720,6 +2720,34 @@ async def get_compliance(request: Request, client_protocol_id: int):
             processed_logs.append(log_dict)
         
         return {"logs": processed_logs}
+@app.delete("/api/compliance/{log_id}")
+async def delete_compliance_log(request: Request, log_id: int):
+    """Delete a specific compliance log entry"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Verify this log belongs to a protocol owned by this user
+        log_check = db.execute(text("""
+            SELECT cl.id 
+            FROM compliance_logs cl
+            JOIN client_protocols cp ON cl.client_protocol_id = cp.id
+            WHERE cl.id = :log_id AND cp.user_id = :user_id
+        """), {
+            'log_id': log_id,
+            'user_id': str(user_id)
+        }).fetchone()
+        
+        if not log_check:
+            raise HTTPException(status_code=404, detail="Compliance log not found")
+        
+        # Delete the log
+        db.execute(text("""
+            DELETE FROM compliance_logs WHERE id = :log_id
+        """), {'log_id': log_id})
+        
+        db.commit()
+        
+        return {"success": True, "message": "Compliance log deleted"}
 
 
 def calculate_compliance_breakdown(protocol, compliance_data):
