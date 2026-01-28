@@ -546,57 +546,7 @@ if os.path.exists("app/static"):
     print("✅ Static files mounted from app/static/")
 else:
     print("⚠️  /app/static/ directory not found - PWA features disabled")
-@app.get("/admin/migrate-protocol-weeks")
-async def migrate_protocol_weeks(request: Request):
-    """One-time migration to add start_week field to all protocol items"""
-    try:
-        with get_db_context() as db:
-            # Get all protocols
-            protocols = db.query(Protocol).all()
-            
-            migrated_count = 0
-            
-            for protocol in protocols:
-                updated = False
-                
-                # Add start_week: 1 to all supplements
-                if protocol.supplements:
-                    for item in protocol.supplements:
-                        if 'start_week' not in item:
-                            item['start_week'] = 1
-                            updated = True
-                
-                # Add start_week: 1 to all exercises
-                if protocol.exercises:
-                    for item in protocol.exercises:
-                        if 'start_week' not in item:
-                            item['start_week'] = 1
-                            updated = True
-                
-                # Add start_week: 1 to all lifestyle changes
-                if protocol.lifestyle_changes:
-                    for item in protocol.lifestyle_changes:
-                        if 'start_week' not in item:
-                            item['start_week'] = 1
-                            updated = True
-                
-                if updated:
-                    migrated_count += 1
-            
-            db.commit()
-            
-            return {
-                "success": True,
-                "message": f"Migrated {migrated_count} protocols with start_week fields"
-            }
-    
-    except Exception as e:
-        import traceback
-        return {
-            "success": False,
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
