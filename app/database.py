@@ -923,4 +923,8 @@ __all__ = [
     'increment_message_count',
     'update_user_subscription',
     'get_user_by_stripe_customer',
+    'Protocol',
+    'ClientProtocol',
+    'ComplianceLog',
+    'ClientMessage',
 ]
