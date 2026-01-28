@@ -217,6 +217,112 @@ class CustomProtocol(Base):
     # Relationships
     user = relationship("User", back_populates="custom_protocols")
 
+class Protocol(Base):
+    """Practitioner-created protocols with week-by-week structure"""
+    __tablename__ = "protocols"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    # Basic info
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    duration_weeks = Column(Integer, default=12)
+    
+    # Protocol content (JSON with start_week for each item)
+    # Structure: [{"name": "Vitamin D", "dosage": "5000 IU", "start_week": 1}, ...]
+    supplements = Column(JSON, default=list)
+    nutrition = Column(JSON, default=dict)  # {foods_to_include: [...], foods_to_avoid: [...], each with start_week}
+    exercises = Column(JSON, default=list)
+    lifestyle_changes = Column(JSON, default=list)
+    sleep = Column(JSON, default=dict)
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    client_assignments = relationship("ClientProtocol", back_populates="protocol", cascade="all, delete-orphan")
+
+
+class ClientProtocol(Base):
+    """Protocol assignments to clients - tracks progression"""
+    __tablename__ = "client_protocols"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)  # Practitioner
+    client_id = Column(Integer, ForeignKey("family_members.id"), nullable=False)  # Client (family member)
+    protocol_id = Column(Integer, ForeignKey("protocols.id"), nullable=False)
+    
+    # Week progression tracking
+    current_week = Column(Integer, default=1)  # ✅ This controls what client sees!
+    started_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Progress tracking
+    completion_percentage = Column(Integer, default=0)
+    last_compliance_check = Column(DateTime, nullable=True)
+    
+    # Token for client portal access
+    access_token = Column(String, unique=True, nullable=True)
+    token_expires_at = Column(DateTime, nullable=True)
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+    
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id])
+    client = relationship("FamilyMember", foreign_keys=[client_id])
+    protocol = relationship("Protocol", back_populates="client_assignments")
+    compliance_logs = relationship("ComplianceLog", back_populates="client_protocol", cascade="all, delete-orphan")
+
+
+class ComplianceLog(Base):
+    """Client compliance tracking"""
+    __tablename__ = "compliance_logs"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    client_protocol_id = Column(Integer, ForeignKey("client_protocols.id"), nullable=False)
+    
+    week_number = Column(Integer, nullable=False)
+    compliance_score = Column(Integer, nullable=False)  # 0-100
+    notes = Column(Text, nullable=True)
+    
+    # Detailed compliance data (checkbox states)
+    compliance_data = Column(JSON, nullable=True)
+    
+    # Client submission data
+    image_base64 = Column(Text, nullable=True)
+    submitted_by = Column(String, nullable=True)  # 'client' or 'practitioner'
+    
+    logged_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    client_protocol = relationship("ClientProtocol", back_populates="compliance_logs")
+
+
+class ClientMessage(Base):
+    """Two-way messaging between practitioner and client"""
+    __tablename__ = "client_messages"
+    
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    client_protocol_id = Column(Integer, ForeignKey("client_protocols.id"), nullable=False)
+    
+    sender_type = Column(String, nullable=False)  # 'client' or 'practitioner'
+    message_text = Column(Text, nullable=False)
+    image_base64 = Column(Text, nullable=True)
+    
+    compliance_log_id = Column(Integer, ForeignKey("compliance_logs.id"), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    is_read = Column(Boolean, default=False)
+    
+    # Relationships
+    client_protocol = relationship("ClientProtocol", foreign_keys=[client_protocol_id])
+
 
 # ============================================================================
 # DATABASE FUNCTIONS
