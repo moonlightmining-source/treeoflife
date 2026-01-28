@@ -2629,7 +2629,67 @@ async def remove_client_protocol(client_id: int, request: Request):
         raise
     except Exception as e:
         print(f"❌ Error removing protocol: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) 
+        
+@app.post("/api/client-protocols/{assignment_id}/advance-week")
+async def advance_client_week(assignment_id: int, request: Request):
+    """Practitioner advances client to next week"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Get assignment and verify ownership
+        assignment = db.query(ClientProtocol).filter(
+            ClientProtocol.id == assignment_id,
+            ClientProtocol.user_id == user_id
+        ).first()
+        
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        # Get protocol to check total weeks
+        protocol = db.query(Protocol).filter(Protocol.id == assignment.protocol_id).first()
+        
+        if assignment.current_week >= protocol.duration_weeks:
+            raise HTTPException(status_code=400, detail="Already at final week")
+        
+        # Advance to next week
+        assignment.current_week += 1
+        
+        # Update completion percentage
+        assignment.completion_percentage = int((assignment.current_week / protocol.duration_weeks) * 100)
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "new_week": assignment.current_week,
+            "completion_percentage": assignment.completion_percentage,
+            "message": f"Advanced to Week {assignment.current_week}"
+        }
+
+@app.post("/api/client-protocols/{assignment_id}/reset-week")
+async def reset_client_week(assignment_id: int, request: Request):
+    """Reset client back to Week 1"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        assignment = db.query(ClientProtocol).filter(
+            ClientProtocol.id == assignment_id,
+            ClientProtocol.user_id == user_id
+        ).first()
+        
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        assignment.current_week = 1
+        assignment.completion_percentage = 0
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Reset to Week 1"
+        } 
 @app.post("/api/compliance")
 async def log_compliance(request: Request, compliance: ComplianceCreate):
     """Log client compliance - UNIFIED system with submitted_by tracking"""
@@ -2654,7 +2714,7 @@ async def log_compliance(request: Request, compliance: ComplianceCreate):
             'week': compliance.week_number,
             'score': compliance.compliance_score,
             'notes': compliance.notes
-        })
+        })        
         
         # Update protocol progress
         protocol = db.query(Protocol).filter(Protocol.id == assignment.protocol_id).first()
