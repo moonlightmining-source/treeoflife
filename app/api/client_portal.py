@@ -258,6 +258,10 @@ async def get_client_view_data(token: str):
                 # Handle list of mixed strings and objects
                 for item in lc_data:
                     if isinstance(item, dict):
+                        # ✅ WEEK FILTERING: Skip items not yet unlocked
+                        if item.get('start_week', 1) > assignment[2]:
+                            continue
+                        
                         # Build readable string from structured lifestyle change
                         parts = []
                         
