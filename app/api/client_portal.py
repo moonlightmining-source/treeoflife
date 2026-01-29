@@ -153,36 +153,36 @@ async def get_client_view_data(token: str):
                         supplements_list.append(f"{name} - {instructions}")
                     else:
                         supplements_list.append(name)
-            elif isinstance(supp_data, list):
-                # Handle list of structured objects
-                for item in supp_data:
-                     if isinstance(item, dict):
-                        # ✅ WEEK FILTERING: Skip items not yet unlocked
-                        if item.get('start_week', 1) > assignment[2]:
-                            continue
-                        
-                        # Build readable string from structured data
-                        parts = [item.get('name', 'Unknown')]
-                        
-                        if item.get('dosage'):
-                            parts.append(item['dosage'])
-                        if item.get('frequency'):
-                            parts.append(item['frequency'].lower())
-                        if item.get('timing'):
-                            parts.append(f"({item['timing'].lower()})")
-                        if item.get('with_food'):
-                            parts.append(item['with_food'].lower())
-                        if item.get('instructions'):
-                            parts.append(f"- {item['instructions']}")
-                        if item.get('notes') and item['notes'].strip():
-                            parts.append(f"Note: {item['notes']}")
-                        
-                        supplements_list.append(' '.join(parts))
-                    elif isinstance(item, str):
-                        supplements_list.append(item)
-        
-        # Build exercises list (separate from supplements)
-        exercises_list = []
+           elif isinstance(supp_data, list):
+    # Handle list of structured objects
+    for item in supp_data:
+        if isinstance(item, dict):
+            # ✅ WEEK FILTERING: Skip items not yet unlocked
+            if item.get('start_week', 1) > assignment[2]:
+                continue
+            
+            # Build readable string from structured data
+            parts = [item.get('name', 'Unknown')]
+            
+            if item.get('dosage'):
+                parts.append(item['dosage'])
+            if item.get('frequency'):
+                parts.append(item['frequency'].lower())
+            if item.get('timing'):
+                parts.append(f"({item['timing'].lower()})")
+            if item.get('with_food'):
+                parts.append(item['with_food'].lower())
+            if item.get('instructions'):
+                parts.append(f"- {item['instructions']}")
+            if item.get('notes') and item['notes'].strip():
+                parts.append(f"Note: {item['notes']}")
+            
+            supplements_list.append(' '.join(parts))
+        elif isinstance(item, str):
+            supplements_list.append(item)
+
+# Build exercises list (separate from supplements)
+exercises_list = []
         
         # Add exercises
         if protocol[5]:  # exercises
