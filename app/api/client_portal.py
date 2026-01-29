@@ -182,10 +182,10 @@ async def get_client_view_data(token: str):
                         supplements_list.append(item)
         
         # Build exercises list (separate from supplements)
-exercises_list = []
+        exercises_list = []
         
         # Add exercises
-            if protocol[5]:  # exercises
+        if protocol[5]:  # exercises
             ex_data = protocol[5]
             # Handle if it's a JSON string
             if isinstance(ex_data, str):
