@@ -185,7 +185,7 @@ async def get_client_view_data(token: str):
 exercises_list = []
         
         # Add exercises
-        if protocol[5]:  # exercises
+            if protocol[5]:  # exercises
             ex_data = protocol[5]
             # Handle if it's a JSON string
             if isinstance(ex_data, str):
