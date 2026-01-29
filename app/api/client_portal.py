@@ -384,12 +384,46 @@ async def get_client_view_data(token: str):
                 if not already_added:
                     lifestyle_changes.append(f"🧘 Stress Management: {stress_text}")
         
-        # Build timeline list  
+       # Build timeline list - SHOW ONLY CURRENT WEEK
         timeline_list = []
         
-        # Add weekly notes - extract and display timeline
+        # Add weekly notes - show only current week's focus
         if protocol[10]:  # weekly_notes
             notes_data = protocol[10]
+            
+            # Handle if it's a JSON string
+            if isinstance(notes_data, str):
+                try:
+                    notes_data = json.loads(notes_data)
+                except:
+                    pass
+            
+            if isinstance(notes_data, dict):
+                current_week_num = assignment[2]  # current_week
+                
+                # Try to find current week's notes with flexible key matching
+                current_week_note = None
+                for key, value in notes_data.items():
+                    if value and str(value).strip():
+                        key_lower = str(key).lower()
+                        
+                        # Match various key formats for current week
+                        if (f'week {current_week_num}' in key_lower or 
+                            f'week{current_week_num}' in key_lower or 
+                            f'week_{current_week_num}' in key_lower or
+                            key == str(current_week_num)):
+                            current_week_note = str(value).strip()
+                            break
+                
+                # Add current week's focus if found
+                if current_week_note:
+                    timeline_list.append(f"⭐ This Week's Focus: {current_week_note}")
+                else:
+                    timeline_list.append(f"⭐ Week {current_week_num} - Stay consistent with your protocol!")
+                        
+            elif isinstance(notes_data, str) and notes_data.strip():
+                # If weekly_notes is just a string, use it as the focus
+                timeline_list.append(f"⭐ This Week's Focus: {notes_data}")
             
             # Handle if it's a JSON string
             if isinstance(notes_data, str):
