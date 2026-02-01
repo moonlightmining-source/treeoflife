@@ -585,10 +585,150 @@ async def mark_client_compliance(token: str, data: dict):
         
         conn.commit()
         
-        return {"success": True, "details_saved": True}
+         return {"success": True, "details_saved": True}
 
+
+# ── Outcome Tracking: Client Check-in ───────────────────────────────────────
+
+@router.get("/client-view/{token}/checkin-status")
+async def get_checkin_status(token: str):
+    """Check if client already submitted a check-in today."""
+    with engine.connect() as conn:
+        # Verify token
+        result = conn.execute(text("""
+            SELECT family_member_id FROM client_view_tokens
+            WHERE token = :token AND is_active = true
+        """), {'token': token}).fetchone()
+
+        if not result:
+            raise HTTPException(status_code=404, detail="Invalid or expired link")
+
+        family_member_id = result[0]
+
+        # Get active protocol assignment
+        assignment = conn.execute(text("""
+            SELECT id, current_week FROM client_protocols
+            WHERE client_id = :client_id AND status = 'active'
+            LIMIT 1
+        """), {'client_id': family_member_id}).fetchone()
+
+        if not assignment:
+            return {"already_submitted": False, "has_protocol": False}
+
+        client_protocol_id = assignment[0]
+        current_week = assignment[1]
+
+        # Check for today's submission
+        today_check = conn.execute(text("""
+            SELECT id, primary_symptom_rating, energy_level, sleep_quality
+            FROM weekly_checkins
+            WHERE client_protocol_id = :cp_id
+              AND CAST(submitted_at AS DATE) = CURRENT_DATE
+            LIMIT 1
+        """), {'cp_id': client_protocol_id}).fetchone()
+
+        if today_check:
+            return {
+                "already_submitted": True,
+                "has_protocol": True,
+                "previous_ratings": {
+                    "symptom": today_check[1],
+                    "energy": today_check[2],
+                    "sleep": today_check[3]
+                }
+            }
+
+        return {
+            "already_submitted": False,
+            "has_protocol": True,
+            "current_week": current_week
+        }
+
+
+@router.post("/client-view/{token}/submit-checkin")
+async def submit_checkin(token: str, data: dict):
+    """Client submits weekly outcome check-in ratings."""
+    with engine.connect() as conn:
+        # Verify token
+        result = conn.execute(text("""
+            SELECT family_member_id FROM client_view_tokens
+            WHERE token = :token AND is_active = true
+        """), {'token': token}).fetchone()
+
+        if not result:
+            raise HTTPException(status_code=404, detail="Invalid or expired link")
+
+        family_member_id = result[0]
+
+        # Get active protocol assignment
+        assignment = conn.execute(text("""
+            SELECT id, current_week FROM client_protocols
+            WHERE client_id = :client_id AND status = 'active'
+            LIMIT 1
+        """), {'client_id': family_member_id}).fetchone()
+
+        if not assignment:
+            raise HTTPException(status_code=404, detail="No active protocol")
+
+        client_protocol_id = assignment[0]
+        current_week = assignment[1]
+
+        # Extract and validate ratings
+        symptom = data.get('symptom_rating')
+        energy = data.get('energy_level')
+        sleep = data.get('sleep_quality')
+
+        if not all(v is not None for v in [symptom, energy, sleep]):
+            raise HTTPException(status_code=400, detail="All three ratings are required")
+
+        for val, name in [(symptom, 'symptom'), (energy, 'energy'), (sleep, 'sleep')]:
+            if not isinstance(val, int) or val < 1 or val > 10:
+                raise HTTPException(status_code=400, detail=f"{name} must be an integer 1-10")
+
+        # Block duplicate same-day submission
+        duplicate = conn.execute(text("""
+            SELECT id FROM weekly_checkins
+            WHERE client_protocol_id = :cp_id
+              AND CAST(submitted_at AS DATE) = CURRENT_DATE
+            LIMIT 1
+        """), {'cp_id': client_protocol_id}).fetchone()
+
+        if duplicate:
+            raise HTTPException(status_code=409, detail="Already submitted today")
+
+        # Insert check-in
+        conn.execute(text("""
+            INSERT INTO weekly_checkins
+            (client_protocol_id, week_number, primary_symptom_rating,
+             energy_level, sleep_quality, what_helped, what_struggled, notes)
+            VALUES (:cp_id, :week, :symptom, :energy, :sleep, :helped, :struggled, :notes)
+        """), {
+            'cp_id': client_protocol_id,
+            'week': current_week,
+            'symptom': symptom,
+            'energy': energy,
+            'sleep': sleep,
+            'helped': data.get('what_helped', '').strip() or None,
+            'struggled': data.get('what_struggled', '').strip() or None,
+            'notes': data.get('notes', '').strip() or None
+        })
+
+        conn.commit()
+
+        return {
+            "success": True,
+            "week": current_week,
+            "ratings": {
+                "symptom": symptom,
+                "energy": energy,
+                "sleep": sleep
+            }
+        }
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 @router.get("/pro/client/{member_id}/compliance-details")
+
 async def get_client_compliance_details(member_id: int, current_user: dict = Depends(get_current_user)):
     """Get detailed compliance breakdown - UNIFIED from compliance_logs"""
     
