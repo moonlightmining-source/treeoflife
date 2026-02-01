@@ -830,6 +830,45 @@
     </style>
 </head>
 <body>
+
+    <!-- ── Checkin Overlay ──────────────────────────────────────── -->
+    <div id="checkin-overlay" onclick="if(event.target===this)closeCheckin()">
+        <div id="checkin-card">
+            <h2>📊 Quick Check-In</h2>
+            <p class="checkin-subtitle">How are you feeling today?</p>
+
+            <div class="checkin-question">
+                <label>Your main health concern</label>
+                <div class="checkin-scale-hints"><span>Much Worse</span><span>Much Better</span></div>
+                <div class="rating-buttons" id="ratings-symptom"></div>
+            </div>
+
+            <div class="checkin-question">
+                <label>Energy level</label>
+                <div class="checkin-scale-hints"><span>Exhausted</span><span>Energized</span></div>
+                <div class="rating-buttons" id="ratings-energy"></div>
+            </div>
+
+            <div class="checkin-question">
+                <label>Sleep quality</label>
+                <div class="checkin-scale-hints"><span>Terrible</span><span>Amazing</span></div>
+                <div class="rating-buttons" id="ratings-sleep"></div>
+            </div>
+
+            <div class="checkin-optional">
+                <label>What's helped? (optional)</label>
+                <textarea id="checkin-helped" placeholder="e.g. morning walks, meditation..."></textarea>
+                <label>What's been difficult? (optional)</label>
+                <textarea id="checkin-struggled" placeholder="e.g. keeping up with supplements..."></textarea>
+            </div>
+
+            <div class="checkin-actions">
+                <button class="checkin-skip" onclick="closeCheckin()">Skip for now</button>
+                <button class="checkin-submit" id="checkin-submit-btn" disabled onclick="submitCheckin()">Submit</button>
+            </div>
+        </div>
+    </div>
+
     <div class="install-banner" id="install-banner">
         <div class="install-content" id="install-content">
             <div class="install-icon">📱</div>
