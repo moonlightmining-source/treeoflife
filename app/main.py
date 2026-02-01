@@ -3256,7 +3256,8 @@ async def get_client_activity(request: Request):
                     'protocol_name': row[4] or 'No protocol assigned',
                     'current_week': row[5] or 0,
                     'total_weeks': row[6] or 0,
-                    'progress': row[7] or 0,
+                    ''progress': row[7] or 0,
+                    'assignment_id': row[9],
                     'last_active': row[8].isoformat() if row[8] else None
                 }
                 for row in activities
