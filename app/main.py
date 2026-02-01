@@ -2803,7 +2803,141 @@ async def get_compliance(request: Request, client_protocol_id: int):
             processed_logs.append(log_dict)
         
         return {"logs": processed_logs}
+
+# ── Outcome Tracking Endpoints ──────────────────────────────────────────────
+
+@app.get("/api/outcomes/summary")
+async def get_outcomes_summary(request: Request):
+    """Practitioner dashboard: aggregate outcome stats for all their clients."""
+    user_id = get_current_user_id(request)
+
+    with get_db_context() as db:
+        stats = db.execute(text("""
+            SELECT
+                COUNT(DISTINCT wc.client_protocol_id) AS clients_tracked,
+                ROUND(AVG(wc.primary_symptom_rating), 1) AS avg_symptom,
+                ROUND(AVG(wc.energy_level), 1) AS avg_energy,
+                ROUND(AVG(wc.sleep_quality), 1) AS avg_sleep,
+                COUNT(*) AS total_checkins
+            FROM weekly_checkins wc
+            JOIN client_protocols cp ON wc.client_protocol_id = cp.id
+            JOIN protocols p ON cp.protocol_id = p.id
+            WHERE p.user_id = :user_id
+        """), {"user_id": user_id}).fetchone()
+
+        # Clients with improving trend (latest > first symptom rating)
+        improving = db.execute(text("""
+            WITH first_last AS (
+                SELECT
+                    client_protocol_id,
+                    FIRST_VALUE(primary_symptom_rating) OVER (
+                        PARTITION BY client_protocol_id ORDER BY submitted_at ASC
+                    ) AS first_rating,
+                    LAST_VALUE(primary_symptom_rating) OVER (
+                        PARTITION BY client_protocol_id ORDER BY submitted_at ASC
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+                    ) AS last_rating
+                FROM weekly_checkins wc
+                JOIN client_protocols cp ON wc.client_protocol_id = cp.id
+                JOIN protocols p ON cp.protocol_id = p.id
+                WHERE p.user_id = :user_id
+            )
+            SELECT
+                COUNT(DISTINCT client_protocol_id) AS total,
+                COUNT(DISTINCT CASE WHEN last_rating > first_rating THEN client_protocol_id END) AS improving
+            FROM first_last
+        """), {"user_id": user_id}).fetchone()
+
+        # Per-protocol effectiveness
+        protocol_stats = db.execute(text("""
+            SELECT
+                p.id AS protocol_id,
+                p.name AS protocol_name,
+                COUNT(DISTINCT wc.client_protocol_id) AS clients,
+                ROUND(AVG(wc.primary_symptom_rating), 1) AS avg_symptom,
+                ROUND(AVG(wc.energy_level), 1) AS avg_energy,
+                ROUND(AVG(wc.sleep_quality), 1) AS avg_sleep,
+                COUNT(*) AS total_checkins
+            FROM weekly_checkins wc
+            JOIN client_protocols cp ON wc.client_protocol_id = cp.id
+            JOIN protocols p ON cp.protocol_id = p.id
+            WHERE p.user_id = :user_id
+            GROUP BY p.id, p.name
+            ORDER BY avg_symptom DESC NULLS LAST
+        """), {"user_id": user_id}).fetchall()
+
+        clients_tracked = stats[0] if stats else 0
+        total_clients = improving[0] if improving else 0
+        improving_count = improving[1] if improving else 0
+        pct_improving = round((improving_count / total_clients * 100), 0) if total_clients > 0 else 0
+
+        return {
+            "clients_tracked": clients_tracked,
+            "total_checkins": stats[4] if stats else 0,
+            "avg_symptom": float(stats[1]) if stats and stats[1] else 0,
+            "avg_energy": float(stats[2]) if stats and stats[2] else 0,
+            "avg_sleep": float(stats[3]) if stats and stats[3] else 0,
+            "pct_improving": pct_improving,
+            "protocols": [
+                {
+                    "id": row[0],
+                    "name": row[1],
+                    "clients": row[2],
+                    "avg_symptom": float(row[3]) if row[3] else 0,
+                    "avg_energy": float(row[4]) if row[4] else 0,
+                    "avg_sleep": float(row[5]) if row[5] else 0,
+                    "total_checkins": row[6]
+                }
+                for row in protocol_stats
+            ]
+        }
+
+@app.get("/api/outcomes/{client_protocol_id}")
+async def get_client_outcomes(request: Request, client_protocol_id: int):
+    """Get all check-ins for a specific client protocol (practitioner view)."""
+    user_id = get_current_user_id(request)
+
+    with get_db_context() as db:
+        # Verify ownership
+        ownership = db.execute(text("""
+            SELECT cp.id FROM client_protocols cp
+            JOIN protocols p ON cp.protocol_id = p.id
+            WHERE cp.id = :cp_id AND p.user_id = :user_id
+        """), {"cp_id": client_protocol_id, "user_id": user_id}).fetchone()
+
+        if not ownership:
+            raise HTTPException(status_code=404, detail="Not found or unauthorized")
+
+        checkins = db.execute(text("""
+            SELECT id, week_number, primary_symptom_rating, energy_level,
+                   sleep_quality, notes, what_helped, what_struggled, submitted_at
+            FROM weekly_checkins
+            WHERE client_protocol_id = :cp_id
+            ORDER BY submitted_at ASC
+        """), {"cp_id": client_protocol_id}).fetchall()
+
+        return {
+            "client_protocol_id": client_protocol_id,
+            "checkins": [
+                {
+                    "id": row[0],
+                    "week": row[1],
+                    "symptom_rating": row[2],
+                    "energy_level": row[3],
+                    "sleep_quality": row[4],
+                    "notes": row[5],
+                    "what_helped": row[6],
+                    "what_struggled": row[7],
+                    "submitted_at": row[8].isoformat() if row[8] else None
+                }
+                for row in checkins
+            ]
+        }
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 @app.delete("/api/compliance/{log_id}")
+
 async def delete_compliance_log(request: Request, log_id: int):
     """Delete a specific compliance log entry"""
     user_id = get_current_user_id(request)
