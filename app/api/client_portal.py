@@ -585,7 +585,7 @@ async def mark_client_compliance(token: str, data: dict):
         
         conn.commit()
         
-         return {"success": True, "details_saved": True}
+        return {"success": True, "details_saved": True}
 
 
 # ── Outcome Tracking: Client Check-in ───────────────────────────────────────
