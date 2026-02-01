@@ -1559,10 +1559,107 @@
             return div.innerHTML;
         }
 
+         // ── Checkin Overlay ────────────────────────────────────────
+        const checkinRatings = { symptom: 0, energy: 0, sleep: 0 };
+
+        function buildRatingButtons(containerId, field) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for (let i = 1; i <= 10; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'rating-btn';
+                btn.textContent = i;
+                btn.onclick = () => selectRating(field, i, btn, container);
+                container.appendChild(btn);
+            }
+        }
+
+        function selectRating(field, value, btn, container) {
+            container.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            checkinRatings[field] = value;
+            updateCheckinSubmit();
+        }
+
+        function updateCheckinSubmit() {
+            const allSet = checkinRatings.symptom > 0 && checkinRatings.energy > 0 && checkinRatings.sleep > 0;
+            document.getElementById('checkin-submit-btn').disabled = !allSet;
+        }
+
+        async function checkCheckinStatus() {
+            try {
+                const res = await fetch(`/api/client-view/${token}/checkin-status`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.has_protocol && !data.already_submitted) {
+                    buildRatingButtons('ratings-symptom', 'symptom');
+                    buildRatingButtons('ratings-energy', 'energy');
+                    buildRatingButtons('ratings-sleep', 'sleep');
+                    setTimeout(() => {
+                        document.getElementById('checkin-overlay').classList.add('active');
+                    }, 1500);
+                }
+            } catch (e) {
+                console.log('Checkin status check failed silently', e);
+            }
+        }
+
+        function closeCheckin() {
+            document.getElementById('checkin-overlay').classList.remove('active');
+        }
+
+        async function submitCheckin() {
+            const btn = document.getElementById('checkin-submit-btn');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+
+            try {
+                const res = await fetch(`/api/client-view/${token}/submit-checkin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        symptom_rating: checkinRatings.symptom,
+                        energy_level: checkinRatings.energy,
+                        sleep_quality: checkinRatings.sleep,
+                        what_helped: document.getElementById('checkin-helped').value.trim() || '',
+                        what_struggled: document.getElementById('checkin-struggled').value.trim() || ''
+                    })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    document.getElementById('checkin-card').innerHTML = `
+                        <div class="checkin-success">
+                            <div class="checkmark">✓</div>
+                            <p>Thanks for checking in!</p>
+                            <p style="font-size:14px; color: var(--bronze-light); margin-top:8px;">
+                                Week ${data.week} recorded
+                            </p>
+                            <button class="checkin-skip" style="margin-top:20px; width:100%;" onclick="closeCheckin()">
+                                Close
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    alert(data.detail || 'Failed to submit check-in.');
+                    btn.disabled = false;
+                    btn.textContent = 'Submit';
+                }
+            } catch (e) {
+                console.error('Checkin submit error:', e);
+                alert('Error submitting check-in. Please try again.');
+                btn.disabled = false;
+                btn.textContent = 'Submit';
+            }
+        }
+        // ─────────────────────────────────────────────────────────────
+
         // Load everything on page load
-        loadProtocol();        
+        loadProtocol();
         loadMessages();
         startMessagePolling();
+        checkCheckinStatus();
         
     </script>
 
