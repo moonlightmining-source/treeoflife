@@ -3230,7 +3230,8 @@ async def get_client_activity(request: Request):
                     COALESCE(cm.last_message, cp.assigned_at),
                     COALESCE(cvt.last_accessed, cp.assigned_at),
                     COALESCE(cp.assigned_at, fm.created_at)
-                ) as last_active
+                ) as last_active,
+                cp.id as assignment_id
             FROM family_members fm
             LEFT JOIN client_view_tokens cvt ON cvt.family_member_id = fm.id AND cvt.is_active = true
             LEFT JOIN client_protocols cp ON cp.client_id = fm.id AND cp.status = 'active'
