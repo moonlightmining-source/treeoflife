@@ -88,6 +88,29 @@ STRIPE_PRICES = {
 # ==================== DATABASE SETUP ====================
 
 engine = create_engine(DATABASE_URL)
+# ==================== AUTO MIGRATION ====================
+def run_migrations():
+    statements = [
+        "CREATE TABLE IF NOT EXISTS weekly_checkins (id SERIAL PRIMARY KEY, client_protocol_id INTEGER NOT NULL REFERENCES client_protocols(id) ON DELETE CASCADE, week_number INTEGER NOT NULL, primary_symptom_rating INTEGER NOT NULL CHECK (primary_symptom_rating BETWEEN 1 AND 10), energy_level INTEGER NOT NULL CHECK (energy_level BETWEEN 1 AND 10), sleep_quality INTEGER NOT NULL CHECK (sleep_quality BETWEEN 1 AND 10), notes TEXT, what_helped TEXT, what_struggled TEXT, submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+        "CREATE TABLE IF NOT EXISTS protocol_outcomes (id SERIAL PRIMARY KEY, client_protocol_id INTEGER NOT NULL REFERENCES client_protocols(id) ON DELETE CASCADE, protocol_id INTEGER NOT NULL REFERENCES protocols(id), overall_effectiveness INTEGER CHECK (overall_effectiveness BETWEEN 1 AND 5), symptoms_improved BOOLEAN, would_recommend BOOLEAN, what_improved_most TEXT, what_was_hardest TEXT, suggestions TEXT, practitioner_effectiveness INTEGER CHECK (practitioner_effectiveness BETWEEN 1 AND 5), completed_by VARCHAR(50) DEFAULT 'client', submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(client_protocol_id))",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_weekly_checkins_unique ON weekly_checkins(client_protocol_id, week_number, DATE(submitted_at))",
+        "CREATE INDEX IF NOT EXISTS idx_weekly_checkins_protocol ON weekly_checkins(client_protocol_id)",
+        "CREATE INDEX IF NOT EXISTS idx_weekly_checkins_week ON weekly_checkins(week_number)",
+        "CREATE INDEX IF NOT EXISTS idx_weekly_checkins_date ON weekly_checkins(submitted_at)",
+        "CREATE INDEX IF NOT EXISTS idx_protocol_outcomes_protocol ON protocol_outcomes(protocol_id)",
+        "CREATE INDEX IF NOT EXISTS idx_protocol_outcomes_effectiveness ON protocol_outcomes(overall_effectiveness)"
+    ]
+    try:
+        with engine.connect() as conn:
+            for stmt in statements:
+                conn.execute(text(stmt))
+            conn.commit()
+        print("✅ Migrations complete")
+    except Exception as e:
+        print(f"Migration error: {e}")
+
+run_migrations()
+# ==================== END MIGRATION ====================
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 def get_db():
