@@ -689,9 +689,143 @@
             .action-btn, .question-btn, .print-btn, .install-banner {
                 display: none !important;
             }
-            .checklist li {
+             .checklist li {
                 break-inside: avoid;
             }
+        }
+
+        /* ── Checkin Overlay ──────────────────────────────────────── */
+        #checkin-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        #checkin-overlay.active { display: flex; }
+
+        #checkin-card {
+            background: rgba(20, 18, 15, 0.97);
+            border: 2px solid var(--bronze-deep);
+            border-radius: 16px;
+            max-width: 480px;
+            width: 100%;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(184, 134, 11, 0.4);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        #checkin-card h2 {
+            color: var(--peach-gold);
+            font-size: 22px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .checkin-subtitle {
+            color: var(--bronze-light);
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .checkin-question { margin-bottom: 20px; }
+        .checkin-question label {
+            display: block;
+            color: var(--amber-light);
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .checkin-scale-hints {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--bronze-light);
+            margin-bottom: 8px;
+        }
+        .rating-buttons { display: flex; gap: 4px; }
+        .rating-btn {
+            flex: 1;
+            height: 36px;
+            border: 1px solid var(--bronze-deep);
+            background: rgba(0,0,0,0.3);
+            color: var(--amber-light);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+        .rating-btn:hover {
+            border-color: var(--amber-light);
+            background: rgba(184, 134, 11, 0.2);
+        }
+        .rating-btn.selected {
+            background: linear-gradient(135deg, var(--bronze-deep), var(--amber-medium));
+            color: var(--pure-black);
+            border-color: var(--amber-light);
+        }
+        .checkin-optional {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(184,134,11,0.3);
+        }
+        .checkin-optional label {
+            display: block;
+            color: var(--amber-medium);
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+        .checkin-optional textarea {
+            width: 100%;
+            min-height: 58px;
+            padding: 10px 12px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--bronze-deep);
+            border-radius: 8px;
+            color: var(--amber-light);
+            font-family: inherit;
+            font-size: 13px;
+            resize: vertical;
+            margin-bottom: 12px;
+        }
+        .checkin-optional textarea:focus { outline: none; border-color: var(--amber-light); }
+        .checkin-optional textarea::placeholder { color: var(--bronze-light); }
+        .checkin-actions { display: flex; gap: 10px; margin-top: 24px; }
+        .checkin-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .checkin-skip {
+            background: transparent;
+            border: 1px solid var(--bronze-deep);
+            color: var(--amber-medium);
+        }
+        .checkin-skip:hover { border-color: var(--amber-light); color: var(--amber-light); }
+        .checkin-submit {
+            background: linear-gradient(135deg, var(--bronze-deep), var(--amber-medium));
+            border: none;
+            color: var(--pure-black);
+        }
+        .checkin-submit:hover:not(:disabled) {
+            box-shadow: 0 4px 15px rgba(184,134,11,0.4);
+            transform: translateY(-1px);
+        }
+        .checkin-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .checkin-success { text-align: center; padding: 20px 0; }
+        .checkin-success .checkmark { font-size: 64px; margin-bottom: 12px; }
+        .checkin-success p { color: var(--amber-light); font-size: 16px; }
+
+        @media (max-width: 480px) {
+            #checkin-card { padding: 20px; }
+            .rating-btn { height: 32px; font-size: 12px; }
         }
     </style>
 </head>
