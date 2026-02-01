@@ -1602,20 +1602,34 @@ async def get_health_profile(request: Request):
 
 @app.put("/api/health/profile")
 async def update_health_profile(request: Request):
-    user_id = get_current_user_id(request)
-    data = await request.json()
-    
-    with get_db_context() as db:
-        profile = get_or_create_health_profile(db, user_id)
+    try:
+        user_id = get_current_user_id(request)
+        data = await request.json()
         
-        for key, value in data.items():
-            if hasattr(profile, key):
-                setattr(profile, key, value)
-        
-        profile.updated_at = datetime.utcnow()
-        db.commit()
-        
-        return {"success": True}
+        with get_db_context() as db:
+            profile = get_or_create_health_profile(db, user_id)
+            
+            for key, value in data.items():
+                if hasattr(profile, key):
+                    # date_of_birth comes as string from frontend, needs conversion
+                    if key == 'date_of_birth' and value:
+                        from datetime import date as date_type
+                        value = date_type.fromisoformat(value)
+                    # skip None on date fields to avoid type errors
+                    elif key == 'date_of_birth' and not value:
+                        continue
+                    setattr(profile, key, value)
+            
+            profile.updated_at = datetime.utcnow()
+            db.commit()
+            
+            return {"success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Profile update failed: {str(e)}")
 # ==================== AI ANALYSIS ENDPOINTS ====================
 
 @app.post("/api/health/ai-analysis/save")
