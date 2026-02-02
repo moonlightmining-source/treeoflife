@@ -1591,7 +1591,9 @@
                 const res = await fetch(`/api/client-view/${token}/checkin-status`);
                 if (!res.ok) return;
                 const data = await res.json();
-                if (data.has_protocol && !data.already_submitted) {
+                
+                // ✅ UPDATED: Only show if backend says show_checkin = true (final week)
+                if (data.show_checkin && !data.already_submitted) {
                     buildRatingButtons('ratings-symptom', 'symptom');
                     buildRatingButtons('ratings-energy', 'energy');
                     buildRatingButtons('ratings-sleep', 'sleep');
@@ -1599,6 +1601,8 @@
                         document.getElementById('checkin-overlay').classList.add('active');
                     }, 1500);
                 }
+                
+                console.log(`📊 Check-in status: Week ${data.current_week}/${data.total_weeks}, Show: ${data.show_checkin}`);
             } catch (e) {
                 console.log('Checkin status check failed silently', e);
             }
