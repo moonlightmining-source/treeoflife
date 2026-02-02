@@ -592,7 +592,7 @@ async def mark_client_compliance(token: str, data: dict):
 
 @router.get("/client-view/{token}/checkin-status")
 async def get_checkin_status(token: str):
-    """Check if client already submitted a check-in today."""
+    """Check if client should see check-in - ONLY on final week."""
     with engine.connect() as conn:
         # Verify token
         result = conn.execute(text("""
@@ -605,18 +605,24 @@ async def get_checkin_status(token: str):
 
         family_member_id = result[0]
 
-        # Get active protocol assignment
+        # Get active protocol assignment WITH protocol duration
         assignment = conn.execute(text("""
-            SELECT id, current_week FROM client_protocols
-            WHERE client_id = :client_id AND status = 'active'
+            SELECT cp.id, cp.current_week, p.duration_weeks
+            FROM client_protocols cp
+            JOIN protocols p ON cp.protocol_id = p.id
+            WHERE cp.client_id = :client_id AND cp.status = 'active'
             LIMIT 1
         """), {'client_id': family_member_id}).fetchone()
 
         if not assignment:
-            return {"already_submitted": False, "has_protocol": False}
+            return {"show_checkin": False, "has_protocol": False}
 
         client_protocol_id = assignment[0]
         current_week = assignment[1]
+        total_weeks = assignment[2]
+        
+        # ✅ KEY LOGIC: Only show check-in if it's the LAST WEEK
+        is_final_week = (current_week == total_weeks)
 
         # Check for today's submission
         today_check = conn.execute(text("""
@@ -629,8 +635,11 @@ async def get_checkin_status(token: str):
 
         if today_check:
             return {
+                "show_checkin": is_final_week,
                 "already_submitted": True,
                 "has_protocol": True,
+                "current_week": current_week,
+                "total_weeks": total_weeks,
                 "previous_ratings": {
                     "symptom": today_check[1],
                     "energy": today_check[2],
@@ -639,10 +648,13 @@ async def get_checkin_status(token: str):
             }
 
         return {
+            "show_checkin": is_final_week,
             "already_submitted": False,
             "has_protocol": True,
-            "current_week": current_week
+            "current_week": current_week,
+            "total_weeks": total_weeks
         }
+
 
 
 @router.post("/client-view/{token}/submit-checkin")
