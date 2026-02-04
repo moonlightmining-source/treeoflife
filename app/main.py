@@ -2951,7 +2951,6 @@ async def get_client_outcomes(request: Request, client_protocol_id: int):
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.delete("/api/compliance/{log_id}")
-
 async def delete_compliance_log(request: Request, log_id: int):
     """Delete a specific compliance log entry"""
     user_id = get_current_user_id(request)
@@ -3123,6 +3122,54 @@ def calculate_compliance_breakdown(protocol, compliance_data):
         'completed_items': completed_items,
         'incomplete_items': incomplete_items
     }
+    @app.delete("/api/client-messages/{message_id}")
+async def delete_client_message(
+    message_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a specific message (practitioner only can delete their own messages)"""
+    try:
+        user_id = current_user['sub']
+        
+        with engine.connect() as conn:
+            # Get the message to verify ownership
+            result = conn.execute(text("""
+                SELECT cm.sender_type, cm.family_member_id, fm.user_id
+                FROM client_messages cm
+                JOIN family_members fm ON cm.family_member_id = fm.id
+                WHERE cm.id = :message_id
+            """), {'message_id': message_id})
+            
+            message = result.fetchone()
+            
+            if not message:
+                raise HTTPException(status_code=404, detail="Message not found")
+            
+            sender_type, family_member_id, owner_user_id = message
+            
+            # Verify the family member belongs to this practitioner
+            if str(owner_user_id) != str(user_id):
+                raise HTTPException(status_code=403, detail="Not authorized to delete this message")
+            
+            # Delete the message
+            conn.execute(text("""
+                DELETE FROM client_messages
+                WHERE id = :message_id
+            """), {'message_id': message_id})
+            
+            conn.commit()
+            
+            return {
+                "success": True,
+                "message": "Message deleted successfully",
+                "deleted_id": message_id
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting message: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete message: {str(e)}")
     
 # ==================== PRO DASHBOARD ENDPOINTS ====================
 
