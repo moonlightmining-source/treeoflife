@@ -3125,7 +3125,7 @@ def calculate_compliance_breakdown(protocol, compliance_data):
 
 @app.delete("/api/client-messages/{message_id}")
 async def delete_client_message(
-    message_id: int,
+    message_id: str,
     current_user: dict = Depends(get_current_user)
 ):
     """Delete a specific message (practitioner only can delete their own messages)"""
