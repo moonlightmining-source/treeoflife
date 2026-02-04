@@ -3122,7 +3122,8 @@ def calculate_compliance_breakdown(protocol, compliance_data):
         'completed_items': completed_items,
         'incomplete_items': incomplete_items
     }
-    @app.delete("/api/client-messages/{message_id}")
+
+@app.delete("/api/client-messages/{message_id}")
 async def delete_client_message(
     message_id: int,
     current_user: dict = Depends(get_current_user)
