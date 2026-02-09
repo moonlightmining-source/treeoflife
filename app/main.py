@@ -2876,9 +2876,8 @@ async def get_outcomes_summary(request: Request):
         """), {"user_id": user_id}).fetchall()
 
         clients_tracked = stats[0] if stats else 0
-        total_clients = improving[0] if improving else 0
-        improving_count = improving[1] if improving else 0
-        pct_improving = round((improving_count / total_clients * 100), 0) if total_clients > 0 else 0
+        avg_symptom = float(stats[1]) if stats and stats[1] else 0
+        pct_improving = round((avg_symptom / 10 * 100), 0) if avg_symptom > 0 else 0
 
         return {
             "clients_tracked": clients_tracked,
