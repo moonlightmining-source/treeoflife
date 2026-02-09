@@ -1582,7 +1582,7 @@
         }
 
         function updateCheckinSubmit() {
-            const allSet = checkinRatings.symptom > 0 && checkinRatings.energy > 0 && checkinRatings.sleep > 0;
+            const allSet = checkinRatings.symptom !== null && checkinRatings.energy !== null && checkinRatings.sleep !== null;
             document.getElementById('checkin-submit-btn').disabled = !allSet;
         }
 
