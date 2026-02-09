@@ -1565,7 +1565,7 @@
         function buildRatingButtons(containerId, field) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
-            for (let i = 1; i <= 10; i++) {
+            for (let i = 0; i <= 10; i++) {
                 const btn = document.createElement('button');
                 btn.className = 'rating-btn';
                 btn.textContent = i;
