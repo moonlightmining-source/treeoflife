@@ -2982,12 +2982,12 @@ async def get_client_outcomes(request: Request, client_protocol_id: int):
 
 @app.delete("/api/compliance/{log_id}")
 async def delete_compliance_log(request: Request, log_id: int):
-    """Delete a specific compliance log entry"""
+    """Delete a compliance log or outcome check-in entry"""
     user_id = get_current_user_id(request)
     
     with get_db_context() as db:
-        # Verify this log belongs to a protocol owned by this user
-        log_check = db.execute(text("""
+        # Try compliance_logs first
+        compliance_check = db.execute(text("""
             SELECT cl.id 
             FROM compliance_logs cl
             JOIN client_protocols cp ON cl.client_protocol_id = cp.id
@@ -2997,18 +2997,29 @@ async def delete_compliance_log(request: Request, log_id: int):
             'user_id': str(user_id)
         }).fetchone()
         
-        if not log_check:
-            raise HTTPException(status_code=404, detail="Compliance log not found")
+        if compliance_check:
+            db.execute(text("DELETE FROM compliance_logs WHERE id = :log_id"), {'log_id': log_id})
+            db.commit()
+            return {"success": True, "message": "Compliance log deleted", "deleted_from": "compliance_logs"}
         
-        # Delete the log
-        db.execute(text("""
-            DELETE FROM compliance_logs WHERE id = :log_id
-        """), {'log_id': log_id})
+        # Try weekly_checkins
+        checkin_check = db.execute(text("""
+            SELECT wc.id 
+            FROM weekly_checkins wc
+            JOIN client_protocols cp ON wc.client_protocol_id = cp.id
+            JOIN protocols p ON cp.protocol_id = p.id
+            WHERE wc.id = :log_id AND p.user_id = :user_id
+        """), {
+            'log_id': log_id,
+            'user_id': str(user_id)
+        }).fetchone()
         
-        db.commit()
+        if checkin_check:
+            db.execute(text("DELETE FROM weekly_checkins WHERE id = :log_id"), {'log_id': log_id})
+            db.commit()
+            return {"success": True, "message": "Outcome check-in deleted", "deleted_from": "weekly_checkins"}
         
-        return {"success": True, "message": "Compliance log deleted"}
-
+        raise HTTPException(status_code=404, detail="Log not found or unauthorized")
 
 def calculate_compliance_breakdown(protocol, compliance_data):
     """Calculate detailed compliance breakdown from protocol and compliance_data"""
