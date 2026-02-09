@@ -1560,8 +1560,8 @@
         }
 
          // ── Checkin Overlay ────────────────────────────────────────
-        const checkinRatings = { symptom: 0, energy: 0, sleep: 0 };
-
+        const checkinRatings = { symptom: null, energy: null, sleep: null };
+        
         function buildRatingButtons(containerId, field) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
