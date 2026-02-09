@@ -2764,7 +2764,7 @@ async def log_compliance(request: Request, compliance: ComplianceCreate):
 
 @app.get("/api/compliance/{client_protocol_id}")
 async def get_compliance(request: Request, client_protocol_id: int):
-    """Get compliance logs for an assignment - UNIFIED system with detailed breakdown"""
+    """Get compliance logs + outcome check-ins for an assignment"""
     user_id = get_current_user_id(request)
     
     with get_db_context() as db:
@@ -2779,8 +2779,8 @@ async def get_compliance(request: Request, client_protocol_id: int):
         # Get the protocol to access its content
         protocol = db.query(Protocol).filter(Protocol.id == assignment.protocol_id).first()
         
-        # Get ALL logs (both client and practitioner submissions)
-        logs = db.execute(text("""
+        # Get compliance logs (checkbox tracking)
+        compliance_logs = db.execute(text("""
             SELECT 
                 id,
                 week_number,
@@ -2795,9 +2795,26 @@ async def get_compliance(request: Request, client_protocol_id: int):
             ORDER BY logged_at DESC
         """), {'protocol_id': client_protocol_id}).fetchall()
         
-        # Process each log to add detailed breakdown
+        # Get outcome check-ins (0-10 ratings)
+        outcome_checkins = db.execute(text("""
+            SELECT 
+                id,
+                week_number,
+                primary_symptom_rating,
+                energy_level,
+                sleep_quality,
+                notes,
+                what_helped,
+                what_struggled,
+                submitted_at
+            FROM weekly_checkins
+            WHERE client_protocol_id = :protocol_id
+            ORDER BY submitted_at DESC
+        """), {'protocol_id': client_protocol_id}).fetchall()
+        
+        # Process compliance logs
         processed_logs = []
-        for log in logs:
+        for log in compliance_logs:
             log_dict = {
                 "id": log[0],
                 "week_number": log[1],
@@ -2806,18 +2823,37 @@ async def get_compliance(request: Request, client_protocol_id: int):
                 "compliance_data": log[4],
                 "image_base64": log[5],
                 "submitted_by": log[6] or 'practitioner',
-                "logged_at": log[7].isoformat() if log[7] else None
+                "logged_at": log[7].isoformat() if log[7] else None,
+                "type": "compliance"
             }
             
             # Calculate detailed breakdown if we have protocol and compliance_data
-            if protocol and log[4]:  # log[4] is compliance_data
+            if protocol and log[4]:
                 breakdown = calculate_compliance_breakdown(protocol, log[4])
                 log_dict.update(breakdown)
             
             processed_logs.append(log_dict)
         
+        # Process outcome check-ins
+        for checkin in outcome_checkins:
+            processed_logs.append({
+                "id": checkin[0],
+                "week_number": checkin[1],
+                "symptom_rating": checkin[2],
+                "energy_level": checkin[3],
+                "sleep_quality": checkin[4],
+                "notes": checkin[5],
+                "what_helped": checkin[6],
+                "what_struggled": checkin[7],
+                "submitted_by": "client",
+                "logged_at": checkin[8].isoformat() if checkin[8] else None,
+                "type": "outcome_checkin"
+            })
+        
+        # Sort all entries by date
+        processed_logs.sort(key=lambda x: x.get("logged_at", ""), reverse=True)
+        
         return {"logs": processed_logs}
-
 # ── Outcome Tracking Endpoints ──────────────────────────────────────────────
 
 @app.get("/api/outcomes/summary")
