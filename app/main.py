@@ -2839,27 +2839,22 @@ async def get_outcomes_summary(request: Request):
             WHERE p.user_id = :user_id
         """), {"user_id": user_id}).fetchone()
 
-        # Clients with improving trend (latest > first symptom rating)
+        # Clients with improving trend (any rating >= 1 shows improvement)
         improving = db.execute(text("""
-            WITH first_last AS (
-                SELECT
+            WITH last_ratings AS (
+                SELECT DISTINCT ON (client_protocol_id)
                     client_protocol_id,
-                    FIRST_VALUE(primary_symptom_rating) OVER (
-                        PARTITION BY client_protocol_id ORDER BY submitted_at ASC
-                    ) AS first_rating,
-                    LAST_VALUE(primary_symptom_rating) OVER (
-                        PARTITION BY client_protocol_id ORDER BY submitted_at ASC
-                        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-                    ) AS last_rating
+                    primary_symptom_rating as last_rating
                 FROM weekly_checkins wc
                 JOIN client_protocols cp ON wc.client_protocol_id = cp.id
                 JOIN protocols p ON cp.protocol_id = p.id
                 WHERE p.user_id = :user_id
+                ORDER BY client_protocol_id, submitted_at DESC
             )
             SELECT
                 COUNT(DISTINCT client_protocol_id) AS total,
-                COUNT(DISTINCT CASE WHEN last_rating > first_rating THEN client_protocol_id END) AS improving
-            FROM first_last
+                COUNT(DISTINCT CASE WHEN last_rating >= 1 THEN client_protocol_id END) AS improving
+            FROM last_ratings
         """), {"user_id": user_id}).fetchone()
 
         # Per-protocol effectiveness
