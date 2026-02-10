@@ -2862,17 +2862,37 @@ async def get_outcomes_summary(request: Request):
     user_id = get_current_user_id(request)
 
     with get_db_context() as db:
+        # Get stats from BOTH weekly_checkins and compliance_logs
         stats = db.execute(text("""
+            WITH all_checkins AS (
+                SELECT 
+                    wc.client_protocol_id,
+                    wc.primary_symptom_rating as rating,
+                    wc.energy_level,
+                    wc.sleep_quality
+                FROM weekly_checkins wc
+                JOIN client_protocols cp ON wc.client_protocol_id = cp.id
+                JOIN protocols p ON cp.protocol_id = p.id
+                WHERE p.user_id = :user_id
+                
+                UNION ALL
+                
+                SELECT 
+                    cl.client_protocol_id,
+                    CAST(cl.compliance_score AS FLOAT) / 10 as rating,
+                    NULL as energy_level,
+                    NULL as sleep_quality
+                FROM compliance_logs cl
+                JOIN client_protocols cp ON cl.client_protocol_id = cp.id
+                WHERE cp.user_id = :user_id
+            )
             SELECT
-                COUNT(DISTINCT wc.client_protocol_id) AS clients_tracked,
-                ROUND(AVG(wc.primary_symptom_rating), 1) AS avg_symptom,
-                ROUND(AVG(wc.energy_level), 1) AS avg_energy,
-                ROUND(AVG(wc.sleep_quality), 1) AS avg_sleep,
+                COUNT(DISTINCT client_protocol_id) AS clients_tracked,
+                ROUND(AVG(rating), 1) AS avg_symptom,
+                ROUND(AVG(energy_level), 1) AS avg_energy,
+                ROUND(AVG(sleep_quality), 1) AS avg_sleep,
                 COUNT(*) AS total_checkins
-            FROM weekly_checkins wc
-            JOIN client_protocols cp ON wc.client_protocol_id = cp.id
-            JOIN protocols p ON cp.protocol_id = p.id
-            WHERE p.user_id = :user_id
+            FROM all_checkins
         """), {"user_id": user_id}).fetchone()
 
         # Clients with improving trend (any rating >= 1 shows improvement)
