@@ -2955,7 +2955,7 @@ async def get_outcomes_summary(request: Request):
                 "sleep_quality": row[9],
                 "checkin_type": row[10],
                 "trend": trend,
-                "checkin_status": row[14],
+                "checkin_status": row[12],  # Changed from row[14] to row[12]
                 "compliance_pct": round(latest_rating * 10, 0) if latest_rating else 0
             })
 
