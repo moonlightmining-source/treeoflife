@@ -2919,7 +2919,7 @@ async def get_outcomes_summary(request: Request):
         
         for row in clients:
             latest_rating = float(row[6]) if row[6] else 0
-            first_rating = float(row[13]) if row[13] else 0
+            first_rating = float(row[11]) if row[11] else 0  # Changed from row[13] to row[11]
             
             # Calculate trend
             if first_rating > 0 and latest_rating > first_rating:
