@@ -2862,14 +2862,12 @@ async def get_outcomes_summary(request: Request):
     user_id = get_current_user_id(request)
 
     with get_db_context() as db:
-        # Get stats from BOTH weekly_checkins and compliance_logs
+       # Get symptom ratings from BOTH tables
         stats = db.execute(text("""
             WITH all_checkins AS (
                 SELECT 
                     wc.client_protocol_id,
-                    wc.primary_symptom_rating as rating,
-                    wc.energy_level,
-                    wc.sleep_quality
+                    wc.primary_symptom_rating as rating
                 FROM weekly_checkins wc
                 JOIN client_protocols cp ON wc.client_protocol_id = cp.id
                 JOIN protocols p ON cp.protocol_id = p.id
@@ -2879,9 +2877,7 @@ async def get_outcomes_summary(request: Request):
                 
                 SELECT 
                     cl.client_protocol_id,
-                    cl.compliance_score::FLOAT / 10.0 as rating,
-                    NULL::FLOAT as energy_level,
-                    NULL::FLOAT as sleep_quality
+                    cl.compliance_score::FLOAT / 10.0 as rating
                 FROM compliance_logs cl
                 JOIN client_protocols cp ON cl.client_protocol_id = cp.id
                 WHERE cp.user_id = :user_id
@@ -2889,10 +2885,19 @@ async def get_outcomes_summary(request: Request):
             SELECT
                 COUNT(DISTINCT client_protocol_id) AS clients_tracked,
                 ROUND(AVG(rating)::numeric, 1) AS avg_symptom,
-                ROUND(AVG(energy_level)::numeric, 1) AS avg_energy,
-                ROUND(AVG(sleep_quality)::numeric, 1) AS avg_sleep,
                 COUNT(*) AS total_checkins
             FROM all_checkins
+        """), {"user_id": user_id}).fetchone()
+        
+        # Get energy/sleep ONLY from weekly_checkins (compliance logs don't have these)
+        energy_sleep = db.execute(text("""
+            SELECT
+                ROUND(AVG(wc.energy_level)::numeric, 1) AS avg_energy,
+                ROUND(AVG(wc.sleep_quality)::numeric, 1) AS avg_sleep
+            FROM weekly_checkins wc
+            JOIN client_protocols cp ON wc.client_protocol_id = cp.id
+            JOIN protocols p ON cp.protocol_id = p.id
+            WHERE p.user_id = :user_id
         """), {"user_id": user_id}).fetchone()
         # Clients with improving trend (any rating >= 1 shows improvement)
         improving = db.execute(text("""
