@@ -2858,106 +2858,122 @@ async def get_compliance(request: Request, client_protocol_id: int):
 
 @app.get("/api/outcomes/summary")
 async def get_outcomes_summary(request: Request):
-    """Practitioner dashboard: aggregate outcome stats for all their clients."""
+    """Enhanced outcomes dashboard with client-level data"""
     user_id = get_current_user_id(request)
 
     with get_db_context() as db:
-       # Get symptom ratings from BOTH tables
-        stats = db.execute(text("""
-            WITH all_checkins AS (
-                SELECT 
-                    wc.client_protocol_id,
-                    wc.primary_symptom_rating as rating
-                FROM weekly_checkins wc
-                JOIN client_protocols cp ON wc.client_protocol_id = cp.id
+        # Get all clients with their latest data
+        clients = db.execute(text("""
+            WITH latest_checkins AS (
+                SELECT DISTINCT ON (cp.id)
+                    cp.id as client_protocol_id,
+                    cp.client_id,
+                    fm.name as client_name,
+                    p.name as protocol_name,
+                    cp.current_week,
+                    p.duration_weeks as total_weeks,
+                    COALESCE(cl.compliance_score::FLOAT / 10.0, wc.primary_symptom_rating, 0) as latest_rating,
+                    COALESCE(cl.logged_at, wc.submitted_at) as last_checkin,
+                    wc.energy_level,
+                    wc.sleep_quality,
+                    CASE 
+                        WHEN cl.id IS NOT NULL THEN 'compliance'
+                        WHEN wc.id IS NOT NULL THEN 'outcome'
+                        ELSE NULL
+                    END as checkin_type
+                FROM client_protocols cp
                 JOIN protocols p ON cp.protocol_id = p.id
+                JOIN family_members fm ON cp.client_id = fm.id
+                LEFT JOIN compliance_logs cl ON cl.client_protocol_id = cp.id
+                LEFT JOIN weekly_checkins wc ON wc.client_protocol_id = cp.id
                 WHERE p.user_id = :user_id
-                
-                UNION ALL
-                
-                SELECT 
-                    cl.client_protocol_id,
-                    cl.compliance_score::FLOAT / 10.0 as rating
-                FROM compliance_logs cl
-                JOIN client_protocols cp ON cl.client_protocol_id = cp.id
-                WHERE cp.user_id = :user_id
-            )
-            SELECT
-                COUNT(DISTINCT client_protocol_id) AS clients_tracked,
-                ROUND(AVG(rating)::numeric, 1) AS avg_symptom,
-                COUNT(*) AS total_checkins
-            FROM all_checkins
-        """), {"user_id": user_id}).fetchone()
-        
-        # Get energy/sleep ONLY from weekly_checkins (compliance logs don't have these)
-        energy_sleep = db.execute(text("""
-            SELECT
-                ROUND(AVG(wc.energy_level)::numeric, 1) AS avg_energy,
-                ROUND(AVG(wc.sleep_quality)::numeric, 1) AS avg_sleep
-            FROM weekly_checkins wc
-            JOIN client_protocols cp ON wc.client_protocol_id = cp.id
-            JOIN protocols p ON cp.protocol_id = p.id
-            WHERE p.user_id = :user_id
-        """), {"user_id": user_id}).fetchone()
-        # Clients with improving trend (any rating >= 1 shows improvement)
-        improving = db.execute(text("""
-            WITH last_ratings AS (
-                SELECT DISTINCT ON (client_protocol_id)
-                    client_protocol_id,
-                    primary_symptom_rating as last_rating
-                FROM weekly_checkins wc
-                JOIN client_protocols cp ON wc.client_protocol_id = cp.id
+                ORDER BY cp.id, COALESCE(cl.logged_at, wc.submitted_at) DESC NULLS LAST
+            ),
+            first_checkins AS (
+                SELECT DISTINCT ON (cp.id)
+                    cp.id as client_protocol_id,
+                    COALESCE(cl.compliance_score::FLOAT / 10.0, wc.primary_symptom_rating, 0) as first_rating
+                FROM client_protocols cp
                 JOIN protocols p ON cp.protocol_id = p.id
+                LEFT JOIN compliance_logs cl ON cl.client_protocol_id = cp.id
+                LEFT JOIN weekly_checkins wc ON wc.client_protocol_id = cp.id
                 WHERE p.user_id = :user_id
-                ORDER BY client_protocol_id, submitted_at DESC
+                ORDER BY cp.id, COALESCE(cl.logged_at, wc.submitted_at) ASC NULLS LAST
             )
-            SELECT
-                COUNT(DISTINCT client_protocol_id) AS total,
-                COUNT(DISTINCT CASE WHEN last_rating >= 1 THEN client_protocol_id END) AS improving
-            FROM last_ratings
-        """), {"user_id": user_id}).fetchone()
-
-        # Per-protocol effectiveness
-        protocol_stats = db.execute(text("""
-            SELECT
-                p.id AS protocol_id,
-                p.name AS protocol_name,
-                COUNT(DISTINCT wc.client_protocol_id) AS clients,
-                ROUND(AVG(wc.primary_symptom_rating), 1) AS avg_symptom,
-                ROUND(AVG(wc.energy_level), 1) AS avg_energy,
-                ROUND(AVG(wc.sleep_quality), 1) AS avg_sleep,
-                COUNT(*) AS total_checkins
-            FROM weekly_checkins wc
-            JOIN client_protocols cp ON wc.client_protocol_id = cp.id
-            JOIN protocols p ON cp.protocol_id = p.id
-            WHERE p.user_id = :user_id
-            GROUP BY p.id, p.name
-            ORDER BY avg_symptom DESC NULLS LAST
+            SELECT 
+                lc.*,
+                fc.first_rating,
+                CASE 
+                    WHEN lc.last_checkin IS NULL THEN 'never'
+                    WHEN CURRENT_TIMESTAMP - lc.last_checkin > INTERVAL '7 days' THEN 'overdue'
+                    ELSE 'current'
+                END as checkin_status
+            FROM latest_checkins lc
+            LEFT JOIN first_checkins fc ON lc.client_protocol_id = fc.client_protocol_id
         """), {"user_id": user_id}).fetchall()
 
-        clients_tracked = stats[0] if stats else 0
-        avg_symptom = float(stats[1]) if stats and stats[1] else 0
-        pct_improving = round((avg_symptom / 10 * 100), 0) if avg_symptom > 0 else 0
+        # Process into structured format
+        client_data = []
+        total_improving = 0
+        needs_attention = []
+        
+        for row in clients:
+            latest_rating = float(row[6]) if row[6] else 0
+            first_rating = float(row[13]) if row[13] else 0
+            
+            # Calculate trend
+            if first_rating > 0 and latest_rating > first_rating:
+                trend = "improving"
+                total_improving += 1
+            elif first_rating > 0 and latest_rating < first_rating:
+                trend = "declining"
+            else:
+                trend = "stable"
+            
+            # Days since last check-in
+            days_since = None
+            if row[7]:  # last_checkin
+                from datetime import datetime
+                days_since = (datetime.now() - row[7]).days
+            
+            # Needs attention if >7 days or declining
+            if row[14] == 'overdue' or trend == 'declining' or latest_rating < 5:
+                needs_attention.append(row[2])  # client_name
+            
+            client_data.append({
+                "client_protocol_id": row[0],
+                "client_id": row[1],
+                "client_name": row[2],
+                "protocol_name": row[3],
+                "current_week": row[4],
+                "total_weeks": row[5],
+                "latest_rating": round(latest_rating, 1),
+                "first_rating": round(first_rating, 1),
+                "last_checkin": row[7].isoformat() if row[7] else None,
+                "days_since_checkin": days_since,
+                "energy_level": row[8],
+                "sleep_quality": row[9],
+                "checkin_type": row[10],
+                "trend": trend,
+                "checkin_status": row[14],
+                "compliance_pct": round(latest_rating * 10, 0) if latest_rating else 0
+            })
+
+        # Summary stats
+        total_clients = len(client_data)
+        pct_improving = round((total_improving / total_clients * 100), 0) if total_clients > 0 else 0
+        avg_rating = sum(c["latest_rating"] for c in client_data) / total_clients if total_clients > 0 else 0
 
         return {
-            "clients_tracked": clients_tracked,
-            "total_checkins": stats[2] if stats else 0,
-            "avg_symptom": float(stats[1]) if stats and stats[1] else 0,
-            "avg_energy": float(energy_sleep[0]) if energy_sleep and energy_sleep[0] else 0,
-            "avg_sleep": float(energy_sleep[1]) if energy_sleep and energy_sleep[1] else 0,
-            "pct_improving": pct_improving,
-            "protocols": [
-                {
-                    "id": row[0],
-                    "name": row[1],
-                    "clients": row[2],
-                    "avg_symptom": float(row[3]) if row[3] else 0,
-                    "avg_energy": float(row[4]) if row[4] else 0,
-                    "avg_sleep": float(row[5]) if row[5] else 0,
-                    "total_checkins": row[6]
-                }
-                for row in protocol_stats
-            ]
+            "summary": {
+                "total_clients": total_clients,
+                "clients_improving": total_improving,
+                "pct_improving": pct_improving,
+                "avg_rating": round(avg_rating, 1),
+                "needs_attention_count": len(needs_attention)
+            },
+            "clients": client_data,
+            "needs_attention": needs_attention
         }
 
 @app.get("/api/outcomes/{client_protocol_id}")
