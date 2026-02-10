@@ -2879,22 +2879,21 @@ async def get_outcomes_summary(request: Request):
                 
                 SELECT 
                     cl.client_protocol_id,
-                    CAST(cl.compliance_score AS FLOAT) / 10 as rating,
-                    NULL as energy_level,
-                    NULL as sleep_quality
+                    cl.compliance_score::FLOAT / 10.0 as rating,
+                    NULL::FLOAT as energy_level,
+                    NULL::FLOAT as sleep_quality
                 FROM compliance_logs cl
                 JOIN client_protocols cp ON cl.client_protocol_id = cp.id
                 WHERE cp.user_id = :user_id
             )
             SELECT
                 COUNT(DISTINCT client_protocol_id) AS clients_tracked,
-                ROUND(AVG(rating), 1) AS avg_symptom,
-                ROUND(AVG(energy_level), 1) AS avg_energy,
-                ROUND(AVG(sleep_quality), 1) AS avg_sleep,
+                ROUND(AVG(rating)::numeric, 1) AS avg_symptom,
+                ROUND(AVG(energy_level)::numeric, 1) AS avg_energy,
+                ROUND(AVG(sleep_quality)::numeric, 1) AS avg_sleep,
                 COUNT(*) AS total_checkins
             FROM all_checkins
         """), {"user_id": user_id}).fetchone()
-
         # Clients with improving trend (any rating >= 1 shows improvement)
         improving = db.execute(text("""
             WITH last_ratings AS (
