@@ -2726,7 +2726,44 @@ async def reset_client_week(assignment_id: int, request: Request):
         return {
             "success": True,
             "message": "Reset to Week 1"
-        } 
+        }
+
+@app.delete("/api/client-protocols/{client_protocol_id}")
+async def delete_client_protocol(client_protocol_id: int, request: Request):
+    """Delete a client protocol assignment and all associated check-ins"""
+    user_id = get_current_user_id(request)
+    
+    with get_db_context() as db:
+        # Verify ownership
+        protocol = db.execute(text("""
+            SELECT cp.id 
+            FROM client_protocols cp
+            JOIN protocols p ON cp.protocol_id = p.id
+            WHERE cp.id = :client_protocol_id AND p.user_id = :user_id
+        """), {"client_protocol_id": client_protocol_id, "user_id": user_id}).fetchone()
+        
+        if not protocol:
+            raise HTTPException(status_code=404, detail="Protocol assignment not found")
+        
+        # Delete compliance logs first (if cascade isn't set up)
+        db.execute(text("""
+            DELETE FROM compliance_logs WHERE client_protocol_id = :client_protocol_id
+        """), {"client_protocol_id": client_protocol_id})
+        
+        # Delete weekly check-ins
+        db.execute(text("""
+            DELETE FROM weekly_checkins WHERE client_protocol_id = :client_protocol_id
+        """), {"client_protocol_id": client_protocol_id})
+        
+        # Delete the protocol assignment
+        db.execute(text("""
+            DELETE FROM client_protocols WHERE id = :client_protocol_id
+        """), {"client_protocol_id": client_protocol_id})
+        
+        db.commit()
+        
+        return {"success": True, "message": "Protocol assignment deleted"}
+
 @app.post("/api/compliance")
 async def log_compliance(request: Request, compliance: ComplianceCreate):
     """Log client compliance - UNIFIED system with submitted_by tracking"""
