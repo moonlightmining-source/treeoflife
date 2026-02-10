@@ -2941,10 +2941,10 @@ async def get_outcomes_summary(request: Request):
 
         return {
             "clients_tracked": clients_tracked,
-            "total_checkins": stats[4] if stats else 0,
+            "total_checkins": stats[2] if stats else 0,
             "avg_symptom": float(stats[1]) if stats and stats[1] else 0,
-            "avg_energy": float(stats[2]) if stats and stats[2] else 0,
-            "avg_sleep": float(stats[3]) if stats and stats[3] else 0,
+            "avg_energy": float(energy_sleep[0]) if energy_sleep and energy_sleep[0] else 0,
+            "avg_sleep": float(energy_sleep[1]) if energy_sleep and energy_sleep[1] else 0,
             "pct_improving": pct_improving,
             "protocols": [
                 {
