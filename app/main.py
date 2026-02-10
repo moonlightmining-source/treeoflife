@@ -2936,8 +2936,8 @@ async def get_outcomes_summary(request: Request):
                 from datetime import datetime
                 days_since = (datetime.now() - row[7]).days
             
-            # Needs attention if >7 days or declining
-            if row[14] == 'overdue' or trend == 'declining' or latest_rating < 5:
+           # Needs attention if >7 days or declining
+            if row[12] == 'overdue' or trend == 'declining' or latest_rating < 5:
                 needs_attention.append(row[2])  # client_name
             
             client_data.append({
