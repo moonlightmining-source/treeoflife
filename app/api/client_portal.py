@@ -635,7 +635,7 @@ async def get_checkin_status(token: str):
 
         if today_check:
             return {
-                "show_checkin": is_final_week,
+                "show_checkin": show_for_week,
                 "already_submitted": True,
                 "has_protocol": True,
                 "current_week": current_week,
