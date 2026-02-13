@@ -621,8 +621,8 @@ async def get_checkin_status(token: str):
         current_week = assignment[1]
         total_weeks = assignment[2]
         
-        # ✅ KEY LOGIC: Only show check-in if it's the LAST WEEK
-        is_final_week = (current_week == total_weeks)
+        # ✅ KEY LOGIC: Show check-in for weeks 2+ (not week 1)
+        show_for_week = (current_week > 1)
 
         # Check for today's submission
         today_check = conn.execute(text("""
