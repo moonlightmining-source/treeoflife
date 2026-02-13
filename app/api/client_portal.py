@@ -694,9 +694,9 @@ async def submit_checkin(token: str, data: dict):
         if not all(v is not None for v in [symptom, energy, sleep, adherence]):
             raise HTTPException(status_code=400, detail="All four ratings are required")
 
-        for val, name in [(symptom, 'symptom'), (energy, 'energy'), (sleep, 'sleep')]:
-            if not isinstance(val, int) or val < 1 or val > 10:
-                raise HTTPException(status_code=400, detail=f"{name} must be an integer 1-10")
+        for val, name in [(symptom, 'symptom'), (energy, 'energy'), (sleep, 'sleep'), (adherence, 'adherence')]:
+            if not isinstance(val, int) or val < 0 or val > 10:
+                raise HTTPException(status_code=400, detail=f"{name} must be an integer 0-10")
 
         # Block duplicate same-day submission
         duplicate = conn.execute(text("""
