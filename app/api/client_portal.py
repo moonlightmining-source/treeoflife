@@ -689,9 +689,10 @@ async def submit_checkin(token: str, data: dict):
         symptom = data.get('symptom_rating')
         energy = data.get('energy_level')
         sleep = data.get('sleep_quality')
+        adherence = data.get('adherence_rating')
 
-        if not all(v is not None for v in [symptom, energy, sleep]):
-            raise HTTPException(status_code=400, detail="All three ratings are required")
+        if not all(v is not None for v in [symptom, energy, sleep, adherence]):
+            raise HTTPException(status_code=400, detail="All four ratings are required")
 
         for val, name in [(symptom, 'symptom'), (energy, 'energy'), (sleep, 'sleep')]:
             if not isinstance(val, int) or val < 1 or val > 10:
