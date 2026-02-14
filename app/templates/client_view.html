@@ -1625,24 +1625,22 @@
         function closeCheckin() {
             document.getElementById('checkin-overlay').classList.remove('active');
         }
-
-        async function submitCheckin() {
+async function submitCheckin() {
             const btn = document.getElementById('checkin-submit-btn');
             btn.disabled = true;
             btn.textContent = 'Sending...';
-
             try {
+                // Build payload with all ratings
+                const payload = {
+                    ...checkinRatings,
+                    what_helped: document.getElementById('checkin-helped').value.trim() || '',
+                    what_struggled: document.getElementById('checkin-struggled').value.trim() || ''
+                };
+                
                 const res = await fetch(`/api/client-view/${token}/submit-checkin`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        symptom_rating: checkinRatings.symptom,
-                        energy_level: checkinRatings.energy,
-                        sleep_quality: checkinRatings.sleep,
-                        adherence_rating: checkinRatings.adherence,
-                        what_helped: document.getElementById('checkin-helped').value.trim() || '',
-                        what_struggled: document.getElementById('checkin-struggled').value.trim() || ''
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await res.json();
