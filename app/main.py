@@ -386,6 +386,16 @@ def run_migration():
             
             print("✅ Health profile fields checked!")
             
+            print("🎯 Adding modality to protocols...")
+            try:
+                conn.execute(text("""
+                    ALTER TABLE protocols 
+                    ADD COLUMN IF NOT EXISTS modality VARCHAR(50) DEFAULT 'general'
+                """))
+                conn.commit()
+                print("  ✅ Added modality to protocols")
+            except Exception as e:
+                print(f"  ⚠️ Modality column: {e}")
             
             print("👨‍👩‍👧‍👦 Fixing family_members ID auto-increment...")
             try:
