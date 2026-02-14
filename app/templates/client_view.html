@@ -1594,10 +1594,8 @@
         }
 
         function updateCheckinSubmit() {
-            const allSet = checkinRatings.symptom !== null && 
-                          checkinRatings.energy !== null && 
-                          checkinRatings.sleep !== null && 
-                          checkinRatings.adherence !== null;
+            // Check if all questions have been answered
+            const allSet = checkinQuestions.every(q => checkinRatings[q.id] !== null);
             document.getElementById('checkin-submit-btn').disabled = !allSet;
         }
         async function checkCheckinStatus() {
