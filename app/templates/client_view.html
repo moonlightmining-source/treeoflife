@@ -1550,6 +1550,7 @@
         
         function buildRatingButtons(containerId, field) {
             const container = document.getElementById(containerId);
+            if (!container) return;
             container.innerHTML = '';
             for (let i = 0; i <= 10; i++) {
                 const btn = document.createElement('button');
@@ -1558,6 +1559,31 @@
                 btn.onclick = () => selectRating(field, i, btn, container);
                 container.appendChild(btn);
             }
+        }
+        
+        function buildDynamicQuestions(questions) {
+            const container = document.getElementById('checkin-questions-container');
+            container.innerHTML = '';
+            
+            questions.forEach(q => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'checkin-question';
+                questionDiv.innerHTML = `
+                    <label>${q.label}</label>
+                    <div class="checkin-scale-hints">
+                        <span>${q.min_label}</span>
+                        <span>${q.max_label}</span>
+                    </div>
+                    <div class="rating-buttons" id="ratings-${q.id}"></div>
+                `;
+                container.appendChild(questionDiv);
+                
+                // Initialize rating to null
+                checkinRatings[q.id] = null;
+                
+                // Build buttons for this question
+                buildRatingButtons(`ratings-${q.id}`, q.id);
+            });
         }
 
         function selectRating(field, value, btn, container) {
