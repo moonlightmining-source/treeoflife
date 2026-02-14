@@ -1625,7 +1625,8 @@
         function closeCheckin() {
             document.getElementById('checkin-overlay').classList.remove('active');
         }
-async function submitCheckin() {
+        
+        async function submitCheckin() {
             const btn = document.getElementById('checkin-submit-btn');
             btn.disabled = true;
             btn.textContent = 'Sending...';
