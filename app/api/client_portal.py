@@ -590,6 +590,38 @@ async def mark_client_compliance(token: str, data: dict):
 
 # ── Outcome Tracking: Client Check-in ───────────────────────────────────────
 
+def get_questions_for_modality(modality: str) -> list:
+    """Return modality-specific check-in questions"""
+    
+    question_sets = {
+        'fitness': [
+            {'id': 'performance', 'label': 'Strength/Performance gains', 'min_label': 'No gains', 'max_label': 'Major gains'},
+            {'id': 'workout_energy', 'label': 'Workout energy levels', 'min_label': 'Exhausted', 'max_label': 'Energized'},
+            {'id': 'recovery', 'label': 'Recovery quality', 'min_label': 'Very sore', 'max_label': 'Fully recovered'},
+            {'id': 'adherence', 'label': 'Workout adherence', 'min_label': 'Missed workouts', 'max_label': 'Perfect'}
+        ],
+        'nutrition': [
+            {'id': 'digestion', 'label': 'Digestive comfort', 'min_label': 'Very uncomfortable', 'max_label': 'Perfect'},
+            {'id': 'energy', 'label': 'Energy levels', 'min_label': 'Sluggish', 'max_label': 'Energized'},
+            {'id': 'progress', 'label': 'Progress toward goals', 'min_label': 'No change', 'max_label': 'On track'},
+            {'id': 'adherence', 'label': 'Dietary adherence', 'min_label': 'Didn\'t follow', 'max_label': 'Perfect'}
+        ],
+        'chiropractic': [
+            {'id': 'pain', 'label': 'Pain level', 'min_label': 'Severe pain', 'max_label': 'Pain-free'},
+            {'id': 'mobility', 'label': 'Range of motion', 'min_label': 'Very limited', 'max_label': 'Full mobility'},
+            {'id': 'function', 'label': 'Daily function', 'min_label': 'Can\'t do tasks', 'max_label': 'Fully functional'},
+            {'id': 'adherence', 'label': 'Treatment adherence', 'min_label': 'Missed visits', 'max_label': 'All attended'}
+        ],
+        'general': [
+            {'id': 'symptom', 'label': 'Your main health concern', 'min_label': 'No change', 'max_label': 'Best outcome'},
+            {'id': 'energy', 'label': 'Energy level', 'min_label': 'Exhausted', 'max_label': 'Energized'},
+            {'id': 'sleep', 'label': 'Sleep quality', 'min_label': 'Terrible', 'max_label': 'Amazing'},
+            {'id': 'adherence', 'label': 'Protocol adherence', 'min_label': 'Didn\'t follow', 'max_label': 'Perfect'}
+        ]
+    }
+    
+    return question_sets.get(modality.lower(), question_sets['general'])
+
 @router.get("/client-view/{token}/checkin-status")
 async def get_checkin_status(token: str):
     """Check if client should see check-in - ONLY on final week."""
