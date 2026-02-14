@@ -1604,18 +1604,19 @@
                 if (!res.ok) return;
                 const data = await res.json();
                 
-                // ✅ UPDATED: Only show if backend says show_checkin = true (final week)
-                if (data.show_checkin && !data.already_submitted) {
-                    buildRatingButtons('ratings-symptom', 'symptom');
-                    buildRatingButtons('ratings-energy', 'energy');
-                    buildRatingButtons('ratings-sleep', 'sleep');
-                    buildRatingButtons('ratings-adherence', 'adherence');
+                if (data.show_checkin && !data.already_submitted && data.questions) {
+                    // Store questions globally
+                    checkinQuestions = data.questions;
+                    
+                    // Build dynamic questions
+                    buildDynamicQuestions(data.questions);
+                    
                     setTimeout(() => {
                         document.getElementById('checkin-overlay').classList.add('active');
                     }, 1500);
                 }
                 
-                console.log(`📊 Check-in status: Week ${data.current_week}/${data.total_weeks}, Show: ${data.show_checkin}`);
+                console.log(`📊 Check-in status: Week ${data.current_week}/${data.total_weeks}, Modality: ${data.modality}, Show: ${data.show_checkin}`);
             } catch (e) {
                 console.log('Checkin status check failed silently', e);
             }
