@@ -605,15 +605,14 @@ async def get_checkin_status(token: str):
 
         family_member_id = result[0]
 
-        # Get active protocol assignment WITH protocol duration
+        # Get active protocol assignment WITH protocol duration and modality
         assignment = conn.execute(text("""
-            SELECT cp.id, cp.current_week, p.duration_weeks
+            SELECT cp.id, cp.current_week, p.duration_weeks, p.modality
             FROM client_protocols cp
             JOIN protocols p ON cp.protocol_id = p.id
             WHERE cp.client_id = :client_id AND cp.status = 'active'
             LIMIT 1
         """), {'client_id': family_member_id}).fetchone()
-
         if not assignment:
             return {"show_checkin": False, "has_protocol": False}
 
