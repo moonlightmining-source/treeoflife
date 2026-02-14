@@ -671,6 +671,8 @@ async def get_checkin_status(token: str):
                 "has_protocol": True,
                 "current_week": current_week,
                 "total_weeks": total_weeks,
+                "modality": modality,
+                "questions": questions,
                 "previous_ratings": {
                     "symptom": today_check[1],
                     "energy": today_check[2],
@@ -683,7 +685,9 @@ async def get_checkin_status(token: str):
             "already_submitted": False,
             "has_protocol": True,
             "current_week": current_week,
-            "total_weeks": total_weeks
+            "total_weeks": total_weeks,
+            "modality": modality,
+            "questions": questions
         }
 
 
